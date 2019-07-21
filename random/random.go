@@ -35,8 +35,3 @@ func Number(min, max int64) int64 {
 	rand.Seed(time.Now().UnixNano())
 	return rand.Int63n(max-min) + min
 }
-
-// Username 随机生成一个 用户名
-func Username() string {
-	return String(8)
-}
