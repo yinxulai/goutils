@@ -68,6 +68,7 @@ func (c *Config) SetStandard(stans ...*Standard) {
 	if stans != nil && len(stans) > 0 {
 		for _, stan := range stans {
 			c.standards[stan.Key] = *stan
+			c.data[stan.Key] = &stan.Default
 		}
 	}
 }
@@ -91,18 +92,17 @@ func (c *Config) LoadFlag() {
 // LoadJSON 加载文件
 func (c *Config) LoadJSON(path string) error {
 	c.RLock()
-	defer c.RUnlock()
 	var err error
 	var data []byte
+	defer c.RUnlock()
 	c.checked = false
-	var dest interface{}
 
 	data, err = file.ReadAll(path)
 	if err != nil {
 		return err
 	}
 
-	err = json.Unmarshal(data, &dest)
+	err = json.Unmarshal(data, c.data)
 	if err != nil {
 		return err
 	}
@@ -122,4 +122,16 @@ func (c *Config) LoadJSONs(paths ...string) error {
 		}
 	}
 	return nil
+}
+
+// CreateJSONTemplate 写入 json 模版
+func (c *Config) CreateJSONTemplate(path string) error {
+	var err error
+	if !c.checked {
+		if err = c.Check(); err != nil {
+			return err
+		}
+	}
+
+	return file.WriteJSON(path, false, c.data)
 }

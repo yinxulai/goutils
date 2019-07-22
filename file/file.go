@@ -2,6 +2,7 @@ package file
 
 import (
 	"bufio"
+	"encoding/json"
 	"io"
 	"io/ioutil"
 	"os"
@@ -69,4 +70,71 @@ func ReadLine(filePth string, callback func([]byte) bool) error {
 		}
 	}
 	return nil
+}
+
+// WriteByte 写入文件
+func WriteByte(path string, append bool, data []byte) error {
+	var err error
+	var file *os.File
+	defer file.Close()
+
+	exits, err := PathExists(path)
+	if err != nil {
+		return err
+	}
+
+	if !exits { // 如果文件不存在 创建
+		file, err = os.Create(path)
+		if err != nil {
+			return err
+		}
+	}
+
+	if exits && !append { // 如果文件存在 读写模式打开
+		file, err = os.OpenFile(path, os.O_RDWR, 0666)
+		if err != nil {
+			return err
+		}
+	}
+
+	if exits && append { // 如果文件存在 且为追加 则追加模式打开
+		file, err = os.OpenFile(path, os.O_APPEND, 0666)
+		if err != nil {
+			return err
+		}
+	}
+
+	_, err = file.Write(data)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// WriteJSON 写入 JSON
+func WriteJSON(path string, append bool, data interface{}) error {
+	jsonData, err := json.Marshal(data)
+	if err == nil {
+		return err
+	}
+
+	return WriteByte(path, append, jsonData)
+}
+
+// WriteString 写入字符串
+func WriteString(path string, append bool, data string) error {
+	return WriteByte(path, append, []byte(data))
+}
+
+// PathExists 文件是否存在
+func PathExists(path string) (bool, error) {
+	_, err := os.Stat(path)
+	if err == nil {
+		return true, nil
+	}
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+	return false, err
 }
