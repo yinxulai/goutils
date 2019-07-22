@@ -10,31 +10,30 @@ import (
 )
 
 // Standard 结构声明
-type Standard struct {
+type standard struct {
 	Key         string
-	Name        string
 	Default     string
 	Required    bool
 	Description string
 }
 
-// Config 配置
-type Config struct {
+// Service 配置
+type Service struct {
 	checked   bool
 	data      map[string]*string
-	standards map[string]Standard
+	standards map[string]standard
 	sync.RWMutex
 }
 
 // Set 获取一个配置
-func (c *Config) Set(key string, value string) {
+func (c *Service) Set(key string, value string) {
 	c.RLock()
 	defer c.RUnlock()
 	c.data[key] = &value
 }
 
 // Get 获取一个配置
-func (c *Config) Get(key string) (value string, err error) {
+func (c *Service) Get(key string) (value string, err error) {
 	if !c.checked {
 		if err = c.Check(); err != nil {
 			return "", err
@@ -49,7 +48,7 @@ func (c *Config) Get(key string) (value string, err error) {
 }
 
 // Check 检查加载到的数据
-func (c *Config) Check() (err error) {
+func (c *Service) Check() (err error) {
 	for _, standard := range c.standards {
 		if standard.Required && c.data[standard.Key] == nil {
 			return fmt.Errorf("%s is required, %s", standard.Key, standard.Description)
@@ -61,25 +60,29 @@ func (c *Config) Check() (err error) {
 }
 
 // SetStandard 设置定义
-func (c *Config) SetStandard(stans ...*Standard) {
+func (c *Service) SetStandard(key string, deft string, required bool, description string) {
+
 	c.RLock()
 	defer c.RUnlock()
 	c.checked = false
-	if stans != nil && len(stans) > 0 {
-		for _, stan := range stans {
-			c.standards[stan.Key] = *stan
-			c.data[stan.Key] = &stan.Default
-		}
-	}
+	stan := new(standard)
+
+	stan.Key = key
+	stan.Default = deft
+	stan.Required = required
+	stan.Description = description
+
+	c.standards[stan.Key] = *stan
+	c.data[stan.Key] = &stan.Default
 }
 
 // AutoLoad 自动加载
-func (c *Config) AutoLoad() {
+func (c *Service) AutoLoad() {
 	c.checked = false
 }
 
 // LoadFlag 加载启动命令参数
-func (c *Config) LoadFlag() {
+func (c *Service) LoadFlag() {
 	c.RLock()
 	defer c.RUnlock()
 	c.checked = false
@@ -87,10 +90,11 @@ func (c *Config) LoadFlag() {
 		value := c.data[standard.Key]
 		flag.StringVar(value, standard.Key, standard.Default, standard.Description)
 	}
+	flag.Parse()
 }
 
 // LoadJSON 加载文件
-func (c *Config) LoadJSON(path string) error {
+func (c *Service) LoadJSON(path string) error {
 	c.RLock()
 	var err error
 	var data []byte
@@ -111,7 +115,7 @@ func (c *Config) LoadJSON(path string) error {
 }
 
 // LoadJSONs 加载多个文件
-func (c *Config) LoadJSONs(paths ...string) error {
+func (c *Service) LoadJSONs(paths ...string) error {
 	var err error
 	c.checked = false
 	if len(paths) > 0 {
@@ -125,7 +129,7 @@ func (c *Config) LoadJSONs(paths ...string) error {
 }
 
 // CreateJSONTemplate 写入 json 模版
-func (c *Config) CreateJSONTemplate(path string) error {
+func (c *Service) CreateJSONTemplate(path string) error {
 	var err error
 	if !c.checked {
 		if err = c.Check(); err != nil {
