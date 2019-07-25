@@ -51,7 +51,7 @@ func (c *Service) Get(key string) (value string, err error) {
 func (c *Service) Check() (err error) {
 	for _, standard := range c.standards {
 		if standard.Required && c.data[standard.Key] == nil {
-			return fmt.Errorf("%s is required, %s", standard.Key, standard.Description)
+			panic(fmt.Sprintf("%s is required, %s", standard.Key, standard.Description))
 		}
 	}
 
