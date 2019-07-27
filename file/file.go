@@ -2,7 +2,6 @@ package file
 
 import (
 	"bufio"
-	"encoding/json"
 	"io"
 	"io/ioutil"
 	"os"
@@ -110,16 +109,6 @@ func WriteByte(path string, append bool, data []byte) error {
 	}
 
 	return nil
-}
-
-// WriteJSON 写入 JSON
-func WriteJSON(path string, append bool, data interface{}) error {
-	jsonData, err := json.Marshal(data)
-	if err == nil {
-		return err
-	}
-
-	return WriteByte(path, append, jsonData)
 }
 
 // WriteString 写入字符串
