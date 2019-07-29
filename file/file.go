@@ -72,6 +72,8 @@ func ReadLine(filePth string, callback func([]byte) bool) error {
 }
 
 // WriteByte 写入文件
+// TODO: 自动创建文件时，目前不支持自动创建目录，例如 path 为 ./dir/data.json
+// 无法自动创建 dir 目录
 func WriteByte(path string, append bool, data []byte) error {
 	var err error
 	var file *os.File
