@@ -34,14 +34,14 @@ func LoadFlag() {
 	defaultService.LoadFlag()
 }
 
-// LoadJSON 加载文件
-func LoadJSON(path string) error {
-	return defaultService.LoadJSON(path)
+// LoadJSONFile 加载文件
+func LoadJSONFile(path string) error {
+	return defaultService.LoadJSONFile(path)
 }
 
-// LoadJSONs 加载多个文件
-func LoadJSONs(paths ...string) error {
-	return defaultService.LoadJSONs(paths...)
+// LoadJSONFiles 加载多个文件
+func LoadJSONFiles(paths ...string) error {
+	return defaultService.LoadJSONFiles(paths...)
 }
 
 // CreateJSONTemplate 写入 json 模版

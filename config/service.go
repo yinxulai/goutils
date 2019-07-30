@@ -1,7 +1,6 @@
 package config
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 	"sync"
@@ -93,20 +92,14 @@ func (c *Service) LoadFlag() {
 	flag.Parse()
 }
 
-// LoadJSON 加载文件
-func (c *Service) LoadJSON(path string) error {
+// LoadJSONFile 加载文件
+func (c *Service) LoadJSONFile(path string) error {
 	c.RLock()
 	var err error
-	var data []byte
 	defer c.RUnlock()
 	c.checked = false
 
-	data, err = file.ReadAll(path)
-	if err != nil {
-		return err
-	}
-
-	err = json.Unmarshal(data, c.data)
+	err = file.ReadJSON(path, &c.data)
 	if err != nil {
 		return err
 	}
@@ -114,13 +107,13 @@ func (c *Service) LoadJSON(path string) error {
 	return nil
 }
 
-// LoadJSONs 加载多个文件
-func (c *Service) LoadJSONs(paths ...string) error {
+// LoadJSONFiles 加载多个文件
+func (c *Service) LoadJSONFiles(paths ...string) error {
 	var err error
 	c.checked = false
 	if len(paths) > 0 {
 		for _, path := range paths {
-			if err = c.LoadJSON(path); err != nil {
+			if err = c.LoadJSONFile(path); err != nil {
 				return err
 			}
 		}
