@@ -2,14 +2,16 @@ package file
 
 import (
 	"bufio"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
+	"path"
 )
 
 // ReadAll 读取全部
-func ReadAll(filePth string) ([]byte, error) {
-	file, err := os.Open(filePth)
+func ReadAll(filePath string) ([]byte, error) {
+	file, err := os.Open(filePath)
 	if err != nil {
 		return nil, err
 	}
@@ -18,14 +20,14 @@ func ReadAll(filePth string) ([]byte, error) {
 }
 
 // ReadBlock 读取指定块大小
-func ReadBlock(filePth string, bufSize int, callback func([]byte) bool) error {
-	file, err := os.Open(filePth)
+func ReadBlock(filePath string, bufSize int, callback func([]byte) bool) error {
+	file, err := os.Open(filePath)
 	if err != nil {
 		return err
 	}
 	defer file.Close()
 
-	buf := make([]byte, bufSize) //一次读取多少个字节
+	buf := make([]byte, bufSize) // 一次读取多少个字节
 	bfRd := bufio.NewReader(file)
 	for {
 		n, err := bfRd.Read(buf)
@@ -46,8 +48,8 @@ func ReadBlock(filePth string, bufSize int, callback func([]byte) bool) error {
 }
 
 // ReadLine 读取行
-func ReadLine(filePth string, callback func([]byte) bool) error {
-	file, err := os.Open(filePth)
+func ReadLine(filePath string, callback func([]byte) bool) error {
+	file, err := os.Open(filePath)
 	if err != nil {
 		return err
 	}
@@ -72,34 +74,44 @@ func ReadLine(filePth string, callback func([]byte) bool) error {
 }
 
 // WriteByte 写入文件
-// TODO: 自动创建文件时，目前不支持自动创建目录，例如 path 为 ./dir/data.json
-// 无法自动创建 dir 目录
-func WriteByte(path string, append bool, data []byte) error {
+func WriteByte(filePath string, append bool, data []byte) error {
 	var err error
 	var file *os.File
 	defer file.Close()
 
-	exits, err := PathExists(path)
+	// 文件是否存在
+	exits, err := PathExists(filePath)
 	if err != nil {
+		fmt.Println(err)
 		return err
 	}
 
 	if !exits { // 如果文件不存在 创建
-		file, err = os.Create(path)
+		// 创建目录
+		dir := path.Dir(filePath)
+		if dir != "." || dir != "/" {
+			err = os.MkdirAll(dir, 0666)
+			if err != nil {
+				return err
+			}
+		}
+
+		file, err = os.OpenFile(filePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
 		if err != nil {
+			fmt.Println(err)
 			return err
 		}
 	}
 
 	if exits && !append { // 如果文件存在 读写模式打开
-		file, err = os.OpenFile(path, os.O_RDWR, 0666)
+		file, err = os.OpenFile(filePath, os.O_RDWR, 0666)
 		if err != nil {
 			return err
 		}
 	}
 
 	if exits && append { // 如果文件存在 且为追加 则追加模式打开
-		file, err = os.OpenFile(path, os.O_APPEND, 0666)
+		file, err = os.OpenFile(filePath, os.O_APPEND, 0666)
 		if err != nil {
 			return err
 		}
@@ -114,18 +126,20 @@ func WriteByte(path string, append bool, data []byte) error {
 }
 
 // WriteString 写入字符串
-func WriteString(path string, append bool, data string) error {
-	return WriteByte(path, append, []byte(data))
+func WriteString(filePath string, append bool, data string) error {
+	return WriteByte(filePath, append, []byte(data))
 }
 
 // PathExists 文件是否存在
-func PathExists(path string) (bool, error) {
-	_, err := os.Stat(path)
+func PathExists(filePath string) (bool, error) {
+	_, err := os.Stat(filePath)
 	if err == nil {
 		return true, nil
 	}
+
 	if os.IsNotExist(err) {
 		return false, nil
 	}
+
 	return false, err
 }
