@@ -29,5 +29,10 @@ func New(state uint16, message string, data interface{}) *Package {
 	entity.State = state
 	entity.Message = message
 
+	// 使用 code 的含义填充默认 message
+	if entity.Message == "" {
+		entity.Message = StateMeaning[state]
+	}
+
 	return entity
 }
