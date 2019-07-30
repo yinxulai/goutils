@@ -20,6 +20,7 @@ func New() *Service {
 	service := new(Service)
 	service.data = make(map[string]*string)
 	service.standards = make(map[string]standard)
+	service.SetStandard("config", "./config.json", false, "自定义配置文件")
 	return service
 }
 
@@ -82,9 +83,11 @@ func (c *Service) SetStandard(key string, deft string, required bool, descriptio
 	c.data[stan.Key] = &stan.Default
 }
 
-// AutoLoad 自动加载
+// AutoLoad TODO: 自动加载
+// 自动查找 .json 文件并尝试解析
+// 全部处理完后检查是否必要参数都已齐全
 func (c *Service) AutoLoad() {
-	c.checked = false
+	c.LoadFlag()
 }
 
 // LoadFlag 加载启动命令参数
@@ -107,6 +110,12 @@ func (c *Service) LoadJSONFile(path string) error {
 	c.checked = false
 	var data map[string]*string
 
+	// 如果环境变量指定了文件 则加载指定文件
+	// 程序内的设定则无效 变量等级最高
+	if c.data["config"] != nil {
+		path = *c.data["config"]
+	}
+
 	err = file.ReadJSON(path, &data)
 	if err != nil {
 		return err
@@ -121,7 +130,7 @@ func (c *Service) LoadJSONFile(path string) error {
 	return nil
 }
 
-// LoadJSONFiles 加载多个文件 TODO: merge
+// LoadJSONFiles 加载多个文件
 func (c *Service) LoadJSONFiles(paths ...string) error {
 	var err error
 	c.checked = false
