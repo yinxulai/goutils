@@ -16,6 +16,13 @@ type standard struct {
 	Description string
 }
 
+func New() *Service {
+	service := new(Service)
+	service.data = make(map[string]*string)
+	service.standards = make(map[string]standard)
+	return service
+}
+
 // Service 配置
 type Service struct {
 	checked   bool
@@ -98,16 +105,23 @@ func (c *Service) LoadJSONFile(path string) error {
 	var err error
 	defer c.RUnlock()
 	c.checked = false
+	var data map[string]*string
 
-	err = file.ReadJSON(path, &c.data)
+	err = file.ReadJSON(path, &data)
 	if err != nil {
 		return err
+	}
+
+	for name, value := range data {
+		if value != nil {
+			c.data[name] = value
+		}
 	}
 
 	return nil
 }
 
-// LoadJSONFiles 加载多个文件
+// LoadJSONFiles 加载多个文件 TODO: merge
 func (c *Service) LoadJSONFiles(paths ...string) error {
 	var err error
 	c.checked = false

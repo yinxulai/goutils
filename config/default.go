@@ -4,9 +4,7 @@ package config
 var defaultService *Service
 
 func init() {
-	defaultService = new(Service)
-	defaultService.data = make(map[string]*string)
-	defaultService.standards = make(map[string]standard)
+	defaultService = New()
 }
 
 // Set 获取一个配置
