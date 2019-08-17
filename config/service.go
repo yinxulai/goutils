@@ -91,15 +91,27 @@ func (c *Service) AutoLoad() {
 }
 
 // LoadFlag 加载启动命令参数
+// TODO: 有问题 会覆盖 data 中的数据
 func (c *Service) LoadFlag() {
 	c.RLock()
 	defer c.RUnlock()
 	c.checked = false
+	cache := make(map[string]*string)
+
 	for _, standard := range c.standards {
-		value := c.data[standard.Key]
-		flag.StringVar(value, standard.Key, standard.Default, standard.Description)
+		var value string
+		cache[standard.Key] = &value
+		flag.StringVar(&value, standard.Key, standard.Default, standard.Description)
 	}
+
 	flag.Parse()
+
+	for key, value := range cache {
+		if value != nil && *value != "" {
+			c.data[key] = value
+		}
+	}
+
 }
 
 // LoadJSONFile 加载文件
