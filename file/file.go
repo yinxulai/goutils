@@ -15,7 +15,7 @@ func ReadAll(filePath string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-
+	defer file.Close()
 	return ioutil.ReadAll(file)
 }
 
@@ -54,7 +54,6 @@ func ReadLine(filePath string, callback func([]byte) bool) error {
 		return err
 	}
 	defer file.Close()
-
 	bfRd := bufio.NewReader(file)
 	for {
 		line, err := bfRd.ReadBytes('\n')
