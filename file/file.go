@@ -102,15 +102,21 @@ func WriteByte(filePath string, append bool, data []byte) error {
 		}
 	}
 
-	if exits && !append { // 如果文件存在 读写模式打开
-		file, err = os.OpenFile(filePath, os.O_RDWR, 0666)
+	if exits && append { // 如果文件存在 且为追加 则追加模式打开
+		file, err = os.OpenFile(filePath, os.O_APPEND, 0666)
 		if err != nil {
 			return err
 		}
 	}
 
-	if exits && append { // 如果文件存在 且为追加 则追加模式打开
-		file, err = os.OpenFile(filePath, os.O_APPEND, 0666)
+	if exits && !append { // 如果文件存在 读写模式打开
+		file, err = os.OpenFile(filePath, os.O_WRONLY, 0666)
+		if err != nil {
+			return err
+		}
+
+		// 清空文件先
+		err = file.Truncate(0)
 		if err != nil {
 			return err
 		}
