@@ -55,7 +55,13 @@ func (c *Service) Get(key string) (value string, err error) {
 		}
 	}
 
-	if c.data[key] == nil {
+	// 如果没有读取到数据,且有默认值
+	if *c.data[key] == "" && c.standards[key].Default != "" {
+		return c.standards[key].Default, nil
+	}
+
+	// 如果没有读取到数据,且没有默认值
+	if *c.data[key] == "" && c.standards[key].Default == "" {
 		return "", fmt.Errorf("%s is nil", key)
 	}
 
