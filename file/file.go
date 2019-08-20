@@ -15,6 +15,7 @@ func ReadAll(filePath string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	defer file.Close()
 	return ioutil.ReadAll(file)
 }
@@ -25,8 +26,8 @@ func ReadBlock(filePath string, bufSize int, callback func([]byte) bool) error {
 	if err != nil {
 		return err
 	}
-	defer file.Close()
 
+	defer file.Close()
 	buf := make([]byte, bufSize) // 一次读取多少个字节
 	bfRd := bufio.NewReader(file)
 	for {
