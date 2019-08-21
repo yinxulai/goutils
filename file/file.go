@@ -16,6 +16,7 @@ func ReadAll(filePath string) ([]byte, error) {
 		return nil, err
 	}
 
+	defer file.Close()
 	return ioutil.ReadAll(file)
 }
 
@@ -25,8 +26,8 @@ func ReadBlock(filePath string, bufSize int, callback func([]byte) bool) error {
 	if err != nil {
 		return err
 	}
-	defer file.Close()
 
+	defer file.Close()
 	buf := make([]byte, bufSize) // 一次读取多少个字节
 	bfRd := bufio.NewReader(file)
 	for {
@@ -54,7 +55,6 @@ func ReadLine(filePath string, callback func([]byte) bool) error {
 		return err
 	}
 	defer file.Close()
-
 	bfRd := bufio.NewReader(file)
 	for {
 		line, err := bfRd.ReadBytes('\n')
@@ -103,15 +103,21 @@ func WriteByte(filePath string, append bool, data []byte) error {
 		}
 	}
 
-	if exits && !append { // 如果文件存在 读写模式打开
-		file, err = os.OpenFile(filePath, os.O_RDWR, 0666)
+	if exits && append { // 如果文件存在 且为追加 则追加模式打开
+		file, err = os.OpenFile(filePath, os.O_APPEND, 0666)
 		if err != nil {
 			return err
 		}
 	}
 
-	if exits && append { // 如果文件存在 且为追加 则追加模式打开
-		file, err = os.OpenFile(filePath, os.O_APPEND, 0666)
+	if exits && !append { // 如果文件存在 读写模式打开
+		file, err = os.OpenFile(filePath, os.O_WRONLY, 0666)
+		if err != nil {
+			return err
+		}
+
+		// 清空文件先
+		err = file.Truncate(0)
 		if err != nil {
 			return err
 		}
