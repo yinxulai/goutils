@@ -68,6 +68,16 @@ func (c *Service) Get(key string) (value string, err error) {
 	return *c.data[key], nil
 }
 
+// MustGet 获取一个配置
+func (c *Service) MustGet(key string) (value string) {
+	value, err := c.Get(key)
+	if err != nil {
+		panic(err)
+	}
+
+	return value
+}
+
 // check 检查加载到的数据
 func (c *Service) load() (err error) {
 	c.loadFlag() // 先加载命令行参数

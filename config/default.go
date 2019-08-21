@@ -17,6 +17,11 @@ func Get(key string) (value string, err error) {
 	return defaultService.Get(key)
 }
 
+// MustGet 获取一个配置
+func MustGet(key string) (value string) {
+	return defaultService.MustGet(key)
+}
+
 // AddFile 获取一个配置
 func AddFile(path string) {
 	defaultService.AddFile(path)
