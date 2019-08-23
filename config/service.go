@@ -3,6 +3,8 @@ package config
 import (
 	"flag"
 	"fmt"
+	"os"
+	"strings"
 	"sync"
 
 	"github.com/yinxulai/goutils/file"
@@ -80,7 +82,8 @@ func (c *Service) MustGet(key string) (value string) {
 
 // check 检查加载到的数据
 func (c *Service) load() (err error) {
-	c.loadFlag() // 先加载命令行参数
+	c.loadEnv()  // 先加载环境变量
+	c.loadFlag() // 再加载命令行参数
 
 	// 读取所有文件
 	for _, filePath := range c.files {
@@ -157,6 +160,19 @@ func (c *Service) loadFile(path string) error {
 	}
 
 	return nil
+}
+
+// 加载环境变量
+func (c *Service) loadEnv() {
+	c.RLock()
+	defer c.RUnlock()
+	c.checked = false
+	for key, standard := range c.standards {
+		value := os.Getenv(strings.ToUpper(standard.Key))
+		if value != "" {
+			c.data[key] = &value
+		}
+	}
 }
 
 // SetStandard 设置定义
