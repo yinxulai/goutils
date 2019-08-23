@@ -102,7 +102,7 @@ func (c *Service) load() (err error) {
 func (c *Service) check() (err error) {
 	for _, standard := range c.standards {
 		if standard.Required && c.data[standard.Key] == nil {
-			panic(fmt.Sprintf("%s is required, %s", standard.Key, standard.Description))
+			panic(fmt.Sprintf("config: %s is required, %s", standard.Key, standard.Description))
 		}
 	}
 
