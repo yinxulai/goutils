@@ -2,37 +2,48 @@ package restful
 
 // 常见错误码
 const (
-	OK                  = uint16(200)  // 正常
-	CREATED             = uint16(201)  // 创建完成
-	ACCEPTED            = uint16(202)  // 更新成功
-	NOCONTENT           = uint16(204)  // 表示资源有空
-	MOVEDPERMANENTLY    = uint16(301)  // 资源的URI已被更新
-	NOTMODIFIED         = uint16(304)  // 源未更改
-	BADREQUEST          = uint16(400)  // 坏请求 一般参数错误
-	UNAUTHORIZED        = uint16(401)  // 未授权
-	FORBIDDEN           = uint16(403)  // 被禁止访问 墙住
-	NOTFOUND            = uint16(404)  // 请求的资源不存在
-	METHODNOTALLOWED    = uint16(405)  // 不正确的请求方式
-	NOTACCEPTABLE       = uint16(406)  // 无法解析的服务端响应
-	CONFLICT            = uint16(409)  // 发生冲突错误 比如修改不存在的东西、创建已存在的东西
-	INTERNALSERVERERROR = uint16(500)  // 服务器内部错误
-	SERVICEUNAVAILABLE  = uint16(503)  // 服务器不可用 维护、暂停、维护等
-	DBERR               = uint16(4001) // 数据库错误
-	NODATA              = uint16(4002) // 无数据
-	DATAEXIST           = uint16(4003) // 数据已存在
-	DATAERR             = uint16(4004) // 数据错误
-	SESSIONERR          = uint16(4101) // session 会话错误
-	LOGINERR            = uint16(4102) // 登陆错误
-	PARAMERR            = uint16(4103) // 参数错误
-	USERERR             = uint16(4104) // 用户错误
-	ROLEERR             = uint16(4105) // 角色错误
-	PWDERR              = uint16(4106) // 密码错误
-	REQERR              = uint16(4201) // 请求错误
-	IPERR               = uint16(4202) // IP 错误
-	THIRDERR            = uint16(4301) // 第三方服务错误
-	IOERR               = uint16(4302) // IO 错误
-	SERVERERR           = uint16(4500) // 服务错误
-	UNKOWNERR           = uint16(4501) // 未知错误
+	// 外部错误
+	OK                  = uint16(200) // 正常
+	CREATED             = uint16(201) // 创建完成
+	ACCEPTED            = uint16(202) // 更新成功
+	NOCONTENT           = uint16(204) // 表示资源有空
+	MOVEDPERMANENTLY    = uint16(301) // 资源的URI已被更新
+	NOTMODIFIED         = uint16(304) // 源未更改
+	BADREQUEST          = uint16(400) // 坏请求 一般参数错误
+	UNAUTHORIZED        = uint16(401) // 未授权
+	FORBIDDEN           = uint16(403) // 被禁止访问 墙住
+	NOTFOUND            = uint16(404) // 请求的资源不存在
+	METHODNOTALLOWED    = uint16(405) // 不正确的请求方式
+	NOTACCEPTABLE       = uint16(406) // 无法解析的服务端响应
+	CONFLICT            = uint16(409) // 发生冲突错误 比如修改不存在的东西、创建已存在的东西
+	INTERNALSERVERERROR = uint16(500) // 服务器内部错误
+	SERVICEUNAVAILABLE  = uint16(503) // 服务器不可用 维护、暂停、维护等
+
+	// 数据库错误
+	DBERR     = uint16(4001) // 数据库错误
+	NODATA    = uint16(4002) // 无数据
+	DATAEXIST = uint16(4003) // 数据已存在
+	DATAERR   = uint16(4004) // 数据错误
+
+	// 用户相关错误
+	SESSIONERR = uint16(4101) // session 会话错误
+	LOGINERR   = uint16(4102) // 登陆错误
+	PARAMERR   = uint16(4103) // 参数错误
+	USERERR    = uint16(4104) // 用户错误
+	ROLEERR    = uint16(4105) // 角色错误
+	PWDERR     = uint16(4106) // 密码错误
+
+	// 请求错误
+	REQERR = uint16(4201) // 请求错误
+	IPERR  = uint16(4202) // IP 错误
+
+	// 服务错误
+	THIRDERR = uint16(4301) // 第三方服务错误
+	IOERR    = uint16(4302) // IO 错误
+
+	// 未知服务错误
+	SERVERERR = uint16(4500) // 服务错误
+	UNKOWNERR = uint16(4501) // 未知错误
 )
 
 // StateMeaning State 的含义
