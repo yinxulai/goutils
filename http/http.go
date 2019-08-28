@@ -12,9 +12,70 @@ import (
 	"os"
 )
 
+var globalHeader *http.Header
+var globalCookies []*http.Cookie
+var defaultHTTPClient = http.DefaultClient
+
+// NewOption 创建一个 NewOption
+func NewOption() *Option {
+	return &Option{
+		Header:  &http.Header{},
+		Cookies: []*http.Cookie{},
+	}
+}
+
+// SetClient 设置默认的 Client
+func SetClient(client *http.Client) {
+	defaultHTTPClient = client
+}
+
+// GetClient 获取默认的 Client
+func GetClient() *http.Client {
+	return defaultHTTPClient
+}
+
+// SetHeader 设置全局的 header
+func SetHeader(key, value string) {
+	if globalHeader == nil {
+		globalHeader = &http.Header{}
+	}
+	globalHeader.Set(key, value)
+}
+
+// SetCookie 设置全局的 Cookie
+func SetCookie(cookie *http.Cookie) {
+	if globalHeader == nil {
+		globalCookies = []*http.Cookie{}
+	}
+	globalCookies = append(globalCookies, cookie)
+}
+
+// ClearHeader 清空全局 header
+func ClearHeader() {
+	globalHeader = nil
+}
+
+// ClearCookies 清空全局 Cookies
+func ClearCookies() {
+	globalCookies = nil
+}
+
+// Option options
+type Option struct {
+	Header  *http.Header
+	Cookies []*http.Cookie
+}
+
 //Get get 请求
-func Get(uri string) ([]byte, error) {
-	response, err := http.Get(uri)
+func Get(uri string, options ...*Option) ([]byte, error) {
+	reqest, err := http.NewRequest("GET", uri, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	loadOption(reqest, options...)
+
+	response, err := defaultHTTPClient.Do(reqest)
 	if err != nil {
 		return nil, err
 	}
@@ -27,22 +88,15 @@ func Get(uri string) ([]byte, error) {
 }
 
 //GetJSON 请求JSON
-func GetJSON(uri string, dest interface{}) error {
+func GetJSON(uri string, dest interface{}, options ...*Option) error {
 	var err error
-	response, err := http.Get(uri)
+
+	data, err := Get(uri, options...)
 	if err != nil {
 		return err
 	}
 
-	defer response.Body.Close()
-	if response.StatusCode != http.StatusOK {
-		return fmt.Errorf("http get error : uri=%v , statusCode=%v", uri, response.StatusCode)
-	}
-	buf, err := ioutil.ReadAll(response.Body)
-	if err != nil {
-		return fmt.Errorf("read http response body error : uri=%v , err=%v", uri, err)
-	}
-	err = json.Unmarshal(buf, dest)
+	err = json.Unmarshal(data, dest)
 	if err != nil {
 		return fmt.Errorf("json unmarshal http response body error : uri=%v , err=%v", uri, err)
 	}
@@ -51,24 +105,15 @@ func GetJSON(uri string, dest interface{}) error {
 }
 
 //GetXML 请求XML
-func GetXML(uri string, dest interface{}) error {
+func GetXML(uri string, dest interface{}, options ...*Option) error {
 	var err error
-	response, err := http.Get(uri)
+
+	data, err := Get(uri, options...)
 	if err != nil {
 		return err
 	}
 
-	defer response.Body.Close()
-	if response.StatusCode != http.StatusOK {
-		return fmt.Errorf("http get error : uri=%v , statusCode=%v", uri, response.StatusCode)
-	}
-
-	buf, err := ioutil.ReadAll(response.Body)
-	if err != nil {
-		return fmt.Errorf("read http response body error : uri=%v , err=%v", uri, err)
-	}
-
-	err = xml.Unmarshal(buf, dest)
+	err = xml.Unmarshal(data, dest)
 	if err != nil {
 		return fmt.Errorf("xml unmarshal http response body error : uri=%v , err=%v", uri, err)
 	}
@@ -85,7 +130,7 @@ type MultipartFormField struct {
 }
 
 //PostFile 上传文件
-func PostFile(fieldname, filename, uri string) ([]byte, error) {
+func PostFile(uri, fieldname, filename string, options ...*Option) ([]byte, error) {
 	fields := []MultipartFormField{
 		{
 			IsFile:    true,
@@ -93,18 +138,18 @@ func PostFile(fieldname, filename, uri string) ([]byte, error) {
 			Filename:  filename,
 		},
 	}
-	return PostMultipartForm(fields, uri)
+	return PostMultipartForm(uri, fields)
 }
 
 //PostXML perform a HTTP/POST request with XML body
-func PostXML(uri string, obj interface{}) ([]byte, error) {
+func PostXML(uri string, obj interface{}, options ...*Option) ([]byte, error) {
 	xmlData, err := xml.Marshal(obj)
 	if err != nil {
 		return nil, err
 	}
 
 	body := bytes.NewBuffer(xmlData)
-	response, err := http.Post(uri, "application/xml;charset=utf-8", body)
+	response, err := defaultHTTPClient.Post(uri, "application/xml;charset=utf-8", body)
 	if err != nil {
 		return nil, err
 	}
@@ -116,8 +161,31 @@ func PostXML(uri string, obj interface{}) ([]byte, error) {
 	return ioutil.ReadAll(response.Body)
 }
 
+//Post post 数据请求
+func Post(uri string, contentType string, body io.Reader, options ...*Option) ([]byte, error) {
+	reqest, err := http.NewRequest("POST", uri, body)
+	if err != nil {
+		return nil, err
+	}
+
+	loadOption(reqest, options...)
+
+	reqest.Header.Set("Content-Type", contentType)
+	response, err := defaultHTTPClient.Do(reqest)
+	if err != nil {
+		return nil, err
+	}
+
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("http get error : uri=%v , statusCode=%v", uri, response.StatusCode)
+	}
+
+	return ioutil.ReadAll(response.Body)
+}
+
 //PostJSON post json 数据请求
-func PostJSON(uri string, obj interface{}) ([]byte, error) {
+func PostJSON(uri string, obj interface{}, options ...*Option) ([]byte, error) {
 	jsonData, err := json.Marshal(obj)
 	if err != nil {
 		return nil, err
@@ -128,20 +196,12 @@ func PostJSON(uri string, obj interface{}) ([]byte, error) {
 	jsonData = bytes.Replace(jsonData, []byte("\\u0026"), []byte("&"), -1)
 
 	body := bytes.NewBuffer(jsonData)
-	response, err := http.Post(uri, "application/json;charset=utf-8", body)
-	if err != nil {
-		return nil, err
-	}
-	defer response.Body.Close()
 
-	if response.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("http get error : uri=%v , statusCode=%v", uri, response.StatusCode)
-	}
-	return ioutil.ReadAll(response.Body)
+	return Post(uri, "application/json;charset=utf-8", body, options...)
 }
 
 //PostMultipartForm 上传文件或其他多个字段
-func PostMultipartForm(fields []MultipartFormField, uri string) (respBody []byte, err error) {
+func PostMultipartForm(uri string, fields []MultipartFormField, options ...*Option) (respBody []byte, err error) {
 	bodyBuf := &bytes.Buffer{}
 	bodyWriter := multipart.NewWriter(bodyBuf)
 
@@ -179,15 +239,38 @@ func PostMultipartForm(fields []MultipartFormField, uri string) (respBody []byte
 	contentType := bodyWriter.FormDataContentType()
 	bodyWriter.Close()
 
-	resp, e := http.Post(uri, contentType, bodyBuf)
-	if e != nil {
-		err = e
+	return Post(uri, contentType, bodyBuf, options...)
+}
+
+func loadOption(reqest *http.Request, options ...*Option) {
+
+	// 拼接全局的 option
+	integralOptions := append(options, &Option{
+		Header:  globalHeader,
+		Cookies: globalCookies,
+	})
+
+	if integralOptions == nil || reqest == nil {
 		return
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return nil, err
+
+	for _, option := range integralOptions {
+		if option.Header != nil {
+			for key, values := range *option.Header {
+				if values != nil {
+					for _, value := range values {
+						reqest.Header.Add(key, value)
+					}
+				}
+			}
+		}
+
+		if option.Cookies != nil {
+			for _, cookie := range option.Cookies {
+				if cookie != nil {
+					reqest.AddCookie(cookie)
+				}
+			}
+		}
 	}
-	respBody, err = ioutil.ReadAll(resp.Body)
-	return
 }
