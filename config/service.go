@@ -118,7 +118,10 @@ func (c *Service) loadFlag() {
 	var configPath string
 	cache := make(map[string]*string)
 
-	flag.StringVar(&configPath, "config", "", "指定配置文件,将覆盖程序内设置")
+	// 如果用户没有覆盖默认的 config 行为
+	if _, exists := c.standards["config"]; !exists {
+		flag.StringVar(&configPath, "config", "", "指定配置文件,将覆盖程序内设置")
+	}
 
 	for _, standard := range c.standards {
 		var value string
