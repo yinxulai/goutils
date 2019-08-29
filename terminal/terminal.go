@@ -28,7 +28,13 @@ type Session struct {
 	stderr  io.ReadCloser
 }
 
-func (s *Session) Env(stdout io.ReadCloser, stderr io.ReadCloser, stdin io.WriteCloser) {
+// GetEnv 获取环境变量
+func (s *Session) GetEnv(key string) string {
+	return ""
+}
+
+// SetEnv 设置环境变量
+func (s *Session) SetEnv(key, value string) {
 
 }
 
