@@ -2,35 +2,45 @@ package terminal
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io"
 	"os/exec"
-	"regexp"
+	"time"
 )
-
-// ActionFunc ActionFunc
-type ActionFunc = func([]byte, []byte, io.WriteCloser)
 
 // New 创建一个绘画
 func New() (*Session, error) {
 	var err error
-	session := new(Session)
-	session.session = exec.Command("bash", "-c")
-	session.stdin, err = session.session.StdinPipe()
-	session.stdout, err = session.session.StdoutPipe()
-	session.stderr, err = session.session.StderrPipe()
-	session.actions = make(map[*regexp.Regexp]ActionFunc, 10)
-	return session, err
+	terminal := new(Session)
+	terminal.session = exec.Command("bash")
+	terminal.inWriteCloser, err = terminal.session.StdinPipe() // 输入
+	terminal.outReadCloser, err = terminal.session.StdoutPipe()
+	terminal.errReadCloser, err = terminal.session.StderrPipe()
+	terminal.outRender = bufio.NewReader(terminal.outReadCloser)
+	terminal.errRender = bufio.NewReader(terminal.errReadCloser)
+	return terminal, err
 }
 
 // Session Session
 type Session struct {
-	runing  bool
-	session *exec.Cmd
-	stdout  io.ReadCloser
-	stderr  io.ReadCloser
-	stdin   io.WriteCloser
-	actions map[*regexp.Regexp]ActionFunc
+	runing        bool
+	session       *exec.Cmd
+	outRender     io.Reader
+	errRender     io.Reader
+	inWriteCloser io.WriteCloser
+	outReadCloser io.ReadCloser
+	errReadCloser io.ReadCloser
+}
+
+func (s *Session) start() error {
+	if !s.runing {
+		if err := s.session.Start(); err != nil {
+			return err
+		}
+		s.runing = true
+	}
+	return nil
 }
 
 // GetEnv 获取环境变量
@@ -50,62 +60,49 @@ func (s *Session) SetEnv(key, value string) {
 	s.session.Env = append(s.session.Env, fmt.Sprintf("%s=%s", key, value))
 }
 
-// action 一个动作
-// stdout 上个命令的输出
-// stderr 上个命令的错误输出
-// stdin 输入
-func (s *Session) action(handler func(io.ReadCloser, io.ReadCloser, io.WriteCloser)) {
-	if !s.runing {
-		if err := s.session.Run(); err != nil {
-			s.Exit(1)
-		}
-	}
-	handler(s.stdout, s.stderr, s.stdin)
+// InputString 输入字符串
+func (s *Session) InputString(input string, timeout time.Duration) (int, string, error) {
+	return s.InputBytes([]byte(input), timeout)
 }
 
-// AddAction 注册匹配自执行动作
-func (s *Session) AddAction(reg regexp.Regexp, handler ActionFunc) {
-	s.actions[&reg] = handler
-}
+// InputBytes 输入字节
+func (s *Session) InputBytes(input []byte, timeout time.Duration) (int, string, error) {
+	var err error
+	inputBuf := new(bytes.Buffer)
 
-// Run 退出
-func (s *Session) Run(code uint) error {
-	if !s.runing {
-		if err := s.session.Start(); err != nil {
-			s.Exit(1)
-			return err
-		}
-
-		outReader := bufio.NewReader(s.stdout)
-		errReader := bufio.NewReader(s.stderr)
-
-		// 读取内容
-		for {
-			outdata, _, outerr := outReader.ReadRune()
-			if outerr != nil || outerr == io.EOF {
-				// 发生错或者读到 EOF
-				break
-			}
-			errdata, _, errerr := errReader.ReadRune()
-			if errerr != nil || errerr == io.EOF {
-				// 发生错或者读到 EOF
-				break
-			}
-
-			for reg, handler := range s.actions {
-				if reg.MatchString(string(errdata)) || reg.MatchString(string(outdata)) {
-					handler([]byte(string(errdata)), []byte(string(outdata)), s.stdin)
-				}
-			}
-
-		}
+	err = s.start()
+	if err != nil {
+		return 0, "", err
 	}
 
-	return nil
+	inputBuf.Write(input)
+	inputBuf.WriteString("\n") // 自动添加回车？
+	_, err = s.inWriteCloser.Write(inputBuf.Bytes())
+	if err != nil {
+		return 0, "", err
+	}
+
+	for {
+		// outdata, _, outerr := s.outRender.Read()
+		// if outerr != nil || outerr == io.EOF {
+		// 	// 发生错或者读到 EOF
+		// 	break
+		// }
+		// fmt.Printf("out: %s,%s \n", outputBuffer.Bytes(), errputBuffer.Bytes())
+	}
+
+	fmt.Printf("end")
+	return 0, "", nil
+}
+
+// InputRune 输入 Rune
+func (s *Session) InputRune(input []rune, timeout time.Duration) (int, string, error) {
+	return s.InputString(string(input), timeout)
 }
 
 // Exit 退出
 func (s *Session) Exit(code uint) error {
 	_, err := s.stdin.Write([]byte(fmt.Sprintf("\n exit %d \n", code)))
+	s.session.Wait()
 	return err
 }
