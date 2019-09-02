@@ -11,7 +11,6 @@ import (
 	"math"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	// 导入 mysql 驱动, 触发 init
@@ -19,7 +18,6 @@ import (
 )
 
 var db *sql.DB
-var pool *sync.Pool
 var config *Config
 
 // SQL 结构化的 sql 语句
@@ -42,35 +40,23 @@ type Config struct {
 
 // 初始化连接池
 func init() {
-	mysql := SQL{}
-	config.Driver = ""
-	config.Source = ""
-	db, err := sql.Open(config.Driver, config.Source)
+	sqlStruct := SQL{}
+	sqlStruct.config = new(Config)
+	sqlStruct.config.Driver = ""
+	sqlStruct.config.Source = ""
+	db, err := sql.Open(sqlStruct.config.Driver, sqlStruct.config.Source)
+	sqlStruct.checkErr(err)
 	db.SetMaxOpenConns(2000)             // 最大链接
 	db.SetMaxIdleConns(1000)             // 空闲连接，也就是连接池里面的数量
 	db.SetConnMaxLifetime(7 * time.Hour) // 设置最大生成周期是7个小时
-	mysql.checkErr(err)
-	db = db
 }
 
-/**
-sql.Open函数实际上是返回一个连接池对象，不是单个连接。
-在open的时候并没有去连接数据库，只有在执行query、exce方法的时候才会去实际连接数据库。
-在一个应用中同样的库连接只需要保存一个sql.Open之后的db对象就可以了，不需要多次open。
-*/
-//func CreateConn() interface{} {
-//	SQL := SQL{}
-//	var cfg Config.Config
-//	cfg = new(Config.Mysql)
-//	SQL.source = cfg.GetConfig()["source"].(string)
-//	SQL.driver = cfg.GetConfig()["driver"].(string)
-//	db, err := sql.Open(SQL.driver, SQL.source)
-//	db.SetMaxOpenConns(2000)  // 最大链接
-//	db.SetMaxIdleConns(1000)  // 空间连接，也就是连接池里面的数量
-//	SQL.checkErr(err)
-//	SQL.conn = db
-//	return db
-//}
+// checkErr 检查错误
+func (SQL SQL) checkErr(err error) {
+	if err != nil {
+		log.Fatal("错误：", err)
+	}
+}
 
 // GetConn GetConn
 func (SQL SQL) GetConn() *SQL {
@@ -332,11 +318,4 @@ func (SQL SQL) QueryRow() map[string]string {
 	}
 	return tempRow
 
-}
-
-// checkErr 检查错误
-func (SQL SQL) checkErr(err error) {
-	if err != nil {
-		log.Fatal("错误：", err)
-	}
 }
