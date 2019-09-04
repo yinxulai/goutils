@@ -1,7 +1,7 @@
 package sql
 
 // 来自 https://github.com/tophubs/TopList/blob/master/Common/Db.go
-// 感谢 tophubs temas
+// 感谢 tophubs team
 // Alain 整理
 
 import (
@@ -142,7 +142,6 @@ func (SQL SQL) Update(tableName string, str map[string]string) int64 {
 func (SQL SQL) Delete(tableName string) int64 {
 	var tempStr = ""
 	tempStr = "delete from " + tableName + SQL.whereString
-	fmt.Println(tempStr)
 	stmt, err := SQL.conn.Prepare(tempStr)
 	SQL.checkErr(err)
 	res, err := stmt.Exec()
@@ -317,5 +316,4 @@ func (SQL SQL) QueryRow() map[string]string {
 		tempRow[key] = string(col)
 	}
 	return tempRow
-
 }
