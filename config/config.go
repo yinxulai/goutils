@@ -18,16 +18,16 @@ type standard struct {
 	Description string
 }
 
-func New() *Service {
-	service := new(Service)
-	service.files = []string{}
-	service.data = make(map[string]*string)
-	service.standards = make(map[string]standard)
-	return service
+func New() *configService {
+	configService := new(configService)
+	configService.files = []string{}
+	configService.data = make(map[string]*string)
+	configService.standards = make(map[string]standard)
+	return configService
 }
 
-// Service 配置
-type Service struct {
+// configService 配置
+type configService struct {
 	loaded    bool     // 加载完成
 	checked   bool     // 检查完成
 	files     []string // 待加载的文件
@@ -37,14 +37,14 @@ type Service struct {
 }
 
 // Set 获取一个配置
-func (c *Service) Set(key string, value string) {
+func (c *configService) Set(key string, value string) {
 	c.RLock()
 	defer c.RUnlock()
 	c.data[key] = &value
 }
 
 // Get 获取一个配置
-func (c *Service) Get(key string) (value string, err error) {
+func (c *configService) Get(key string) (value string, err error) {
 	if !c.checked {
 		if err = c.check(); err != nil {
 			return "", err
@@ -71,7 +71,7 @@ func (c *Service) Get(key string) (value string, err error) {
 }
 
 // MustGet 获取一个配置
-func (c *Service) MustGet(key string) (value string) {
+func (c *configService) MustGet(key string) (value string) {
 	value, err := c.Get(key)
 	if err != nil {
 		panic(err)
@@ -81,7 +81,7 @@ func (c *Service) MustGet(key string) (value string) {
 }
 
 // check 检查加载到的数据
-func (c *Service) load() (err error) {
+func (c *configService) load() (err error) {
 	c.loadEnv()  // 先加载环境变量
 	c.loadFlag() // 再加载命令行参数
 
@@ -99,7 +99,7 @@ func (c *Service) load() (err error) {
 }
 
 // check 检查加载到的数据
-func (c *Service) check() (err error) {
+func (c *configService) check() (err error) {
 	for _, standard := range c.standards {
 		if standard.Required && c.data[standard.Key] == nil {
 			panic(fmt.Sprintf("config: %s is required, %s", standard.Key, standard.Description))
@@ -111,7 +111,7 @@ func (c *Service) check() (err error) {
 }
 
 // loadFlag 加载启动命令参数
-func (c *Service) loadFlag() {
+func (c *configService) loadFlag() {
 	c.RLock()
 	defer c.RUnlock()
 	c.checked = false
@@ -144,7 +144,7 @@ func (c *Service) loadFlag() {
 }
 
 // loadFile 加载文件
-func (c *Service) loadFile(path string) error {
+func (c *configService) loadFile(path string) error {
 	c.RLock()
 	var err error
 	defer c.RUnlock()
@@ -166,7 +166,7 @@ func (c *Service) loadFile(path string) error {
 }
 
 // 加载环境变量
-func (c *Service) loadEnv() {
+func (c *configService) loadEnv() {
 	c.RLock()
 	defer c.RUnlock()
 	c.checked = false
@@ -179,7 +179,7 @@ func (c *Service) loadEnv() {
 }
 
 // SetStandard 设置定义
-func (c *Service) SetStandard(key string, deft string, required bool, description string) {
+func (c *configService) SetStandard(key string, deft string, required bool, description string) {
 
 	c.RLock()
 	defer c.RUnlock()
@@ -196,14 +196,14 @@ func (c *Service) SetStandard(key string, deft string, required bool, descriptio
 }
 
 // AddFile 加载文件
-func (c *Service) AddFile(path string) {
+func (c *configService) AddFile(path string) {
 	c.RLock()
 	defer c.RUnlock()
 	c.files = append(c.files, path)
 }
 
 // CreateJSONTemplate 写入 json 模版
-func (c *Service) CreateJSONTemplate(path string) error {
+func (c *configService) CreateJSONTemplate(path string) error {
 	var err error
 	if !c.checked {
 		if err = c.check(); err != nil {
