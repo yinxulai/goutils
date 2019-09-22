@@ -26,8 +26,8 @@ type Logger interface {
 	Errorf(format string, v ...interface{})
 }
 
-// Service Service
-type Service struct {
+// LoggerService LoggerService
+type LoggerService struct {
 	level       int
 	outPath     string
 	history     []string
@@ -37,7 +37,7 @@ type Service struct {
 	debugLogger *log.Logger
 }
 
-func (c *Service) output(v string) {
+func (c *LoggerService) output(v string) {
 	if c.history == nil {
 		c.history = make([]string, 200)
 	}
@@ -45,67 +45,67 @@ func (c *Service) output(v string) {
 }
 
 // Debug Debug
-func (c *Service) Debug(v ...interface{}) {
+func (c *LoggerService) Debug(v ...interface{}) {
 	if c.level >= DebugLevel {
 		c.debugLogger.Print(v...)
 	}
 }
 
 // Debugf Debugf
-func (c *Service) Debugf(format string, v ...interface{}) {
+func (c *LoggerService) Debugf(format string, v ...interface{}) {
 	if c.level >= DebugLevel {
 		c.debugLogger.Printf(format, v...)
 	}
 }
 
 // Info Info
-func (c *Service) Info(v ...interface{}) {
+func (c *LoggerService) Info(v ...interface{}) {
 	if c.level >= DebugLevel {
 		c.infoLogger.Print(v...)
 	}
 }
 
 // Infof Infof
-func (c *Service) Infof(format string, v ...interface{}) {
+func (c *LoggerService) Infof(format string, v ...interface{}) {
 	if c.level >= DebugLevel {
 		c.infoLogger.Printf(format, v...)
 	}
 }
 
 // Warn Warn
-func (c *Service) Warn(v ...interface{}) {
+func (c *LoggerService) Warn(v ...interface{}) {
 	if c.level >= DebugLevel {
 		c.warnLogger.Print(v...)
 	}
 }
 
 // Warnf Warnf
-func (c *Service) Warnf(format string, v ...interface{}) {
+func (c *LoggerService) Warnf(format string, v ...interface{}) {
 	if c.level >= DebugLevel {
 		c.warnLogger.Printf(format, v...)
 	}
 }
 
 // Error Error
-func (c *Service) Error(v ...interface{}) {
+func (c *LoggerService) Error(v ...interface{}) {
 	if c.level >= DebugLevel {
 		c.errorLogger.Print(v...)
 	}
 }
 
 // Errorf Errorf
-func (c *Service) Errorf(format string, v ...interface{}) {
+func (c *LoggerService) Errorf(format string, v ...interface{}) {
 	if c.level >= DebugLevel {
 		c.errorLogger.Printf(format, v...)
 	}
 }
 
 // SetLevel 设置输出级别
-func (c *Service) SetLevel(level int) {
+func (c *LoggerService) SetLevel(level int) {
 	c.level = level
 }
 
 // SetOutPath 设置文件输出位置
-func (c *Service) SetOutPath(path string) {
+func (c *LoggerService) SetOutPath(path string) {
 	c.outPath = path
 }

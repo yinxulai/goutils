@@ -1,39 +1,39 @@
 package logger
 
-// defaultService Config
-var defaultService *Service
+// globalService Config
+var globalService *LoggerService
 
 func init() {
-	defaultService = new(Service)
+	globalService = new(LoggerService)
 }
 
 func Debug(v ...interface{}) {
-	defaultService.Debug(v...)
+	globalService.Debug(v...)
 }
 func Debugf(format string, v ...interface{}) {
-	defaultService.Debugf(format, v)
+	globalService.Debugf(format, v)
 }
 func Info(v ...interface{}) {
-	defaultService.Info(v...)
+	globalService.Info(v...)
 }
 func Infof(format string, v ...interface{}) {
-	defaultService.Infof(format, v...)
+	globalService.Infof(format, v...)
 }
 func Warn(v ...interface{}) {
-	defaultService.Warn(v...)
+	globalService.Warn(v...)
 }
 func Warnf(format string, v ...interface{}) {
-	defaultService.Warnf(format, v...)
+	globalService.Warnf(format, v...)
 }
 func Error(v ...interface{}) {
-	defaultService.Error(v...)
+	globalService.Error(v...)
 }
 func Errorf(format string, v ...interface{}) {
-	defaultService.Errorf(format, v...)
+	globalService.Errorf(format, v...)
 }
 func SetLevel(level int) {
-	defaultService.SetLevel(level)
+	globalService.SetLevel(level)
 }
 func SetOutPath(path string) {
-	defaultService.SetOutPath(path)
+	globalService.SetOutPath(path)
 }
