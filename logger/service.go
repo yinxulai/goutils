@@ -12,6 +12,20 @@ const (
 	ErrorLevel
 )
 
+// Logger 接口类型
+type Logger interface {
+	SetLevel(level int)
+	SetOutPath(path string)
+	Debug(v ...interface{})
+	Debugf(format string, v ...interface{})
+	Info(v ...interface{})
+	Infof(format string, v ...interface{})
+	Warn(v ...interface{})
+	Warnf(format string, v ...interface{})
+	Error(v ...interface{})
+	Errorf(format string, v ...interface{})
+}
+
 // Service Service
 type Service struct {
 	level       int
@@ -28,62 +42,61 @@ func (c *Service) output(v string) {
 		c.history = make([]string, 200)
 	}
 	c.history = append(c.history, v)
-
 }
 
 // Debug Debug
 func (c *Service) Debug(v ...interface{}) {
 	if c.level >= DebugLevel {
-		c.debugLogger.Print(v)
+		c.debugLogger.Print(v...)
 	}
 }
 
 // Debugf Debugf
 func (c *Service) Debugf(format string, v ...interface{}) {
 	if c.level >= DebugLevel {
-		c.debugLogger.Printf(format, v)
+		c.debugLogger.Printf(format, v...)
 	}
 }
 
 // Info Info
 func (c *Service) Info(v ...interface{}) {
 	if c.level >= DebugLevel {
-		c.infoLogger.Print(v)
+		c.infoLogger.Print(v...)
 	}
 }
 
 // Infof Infof
 func (c *Service) Infof(format string, v ...interface{}) {
 	if c.level >= DebugLevel {
-		c.infoLogger.Printf(format, v)
+		c.infoLogger.Printf(format, v...)
 	}
 }
 
 // Warn Warn
 func (c *Service) Warn(v ...interface{}) {
 	if c.level >= DebugLevel {
-		c.warnLogger.Print(v)
+		c.warnLogger.Print(v...)
 	}
 }
 
 // Warnf Warnf
 func (c *Service) Warnf(format string, v ...interface{}) {
 	if c.level >= DebugLevel {
-		c.warnLogger.Printf(format, v)
+		c.warnLogger.Printf(format, v...)
 	}
 }
 
 // Error Error
 func (c *Service) Error(v ...interface{}) {
 	if c.level >= DebugLevel {
-		c.errorLogger.Print(v)
+		c.errorLogger.Print(v...)
 	}
 }
 
 // Errorf Errorf
 func (c *Service) Errorf(format string, v ...interface{}) {
 	if c.level >= DebugLevel {
-		c.errorLogger.Printf(format, v)
+		c.errorLogger.Printf(format, v...)
 	}
 }
 

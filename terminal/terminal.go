@@ -10,22 +10,22 @@ import (
 )
 
 // New 创建一个绘画
-func New() (*Session, error) {
+func New() (*Terminal, error) {
 	var err error
-	terminal := new(Session)
-	terminal.session = exec.Command("bash")
-	terminal.inWriteCloser, err = terminal.session.StdinPipe() // 输入
-	terminal.outReadCloser, err = terminal.session.StdoutPipe()
-	terminal.errReadCloser, err = terminal.session.StderrPipe()
+	terminal := new(Terminal)
+	terminal.Terminal = exec.Command("bash")
+	terminal.inWriteCloser, err = terminal.Terminal.StdinPipe() // 输入
+	terminal.outReadCloser, err = terminal.Terminal.StdoutPipe()
+	terminal.errReadCloser, err = terminal.Terminal.StderrPipe()
 	terminal.outRender = bufio.NewReader(terminal.outReadCloser)
 	terminal.errRender = bufio.NewReader(terminal.errReadCloser)
 	return terminal, err
 }
 
-// Session Session
-type Session struct {
+// Terminal Terminal
+type Terminal struct {
 	runing        bool
-	session       *exec.Cmd
+	Terminal      *exec.Cmd
 	outRender     io.Reader
 	errRender     io.Reader
 	inWriteCloser io.WriteCloser
@@ -33,9 +33,9 @@ type Session struct {
 	errReadCloser io.ReadCloser
 }
 
-func (s *Session) start() error {
+func (s *Terminal) start() error {
 	if !s.runing {
-		if err := s.session.Start(); err != nil {
+		if err := s.Terminal.Start(); err != nil {
 			return err
 		}
 		s.runing = true
@@ -45,8 +45,8 @@ func (s *Session) start() error {
 
 // GetEnv 获取环境变量
 // 仅第一个 Action 执行前可用
-func (s *Session) GetEnv(key string) string {
-	for _, env := range s.session.Env {
+func (s *Terminal) GetEnv(key string) string {
+	for _, env := range s.Terminal.Env {
 		if key != "" && env[:len(key)] == key {
 			return env[len(key)+1:]
 		}
@@ -56,17 +56,17 @@ func (s *Session) GetEnv(key string) string {
 
 // SetEnv 设置环境变量
 // 仅第一个 Action 执行前可用
-func (s *Session) SetEnv(key, value string) {
-	s.session.Env = append(s.session.Env, fmt.Sprintf("%s=%s", key, value))
+func (s *Terminal) SetEnv(key, value string) {
+	s.Terminal.Env = append(s.Terminal.Env, fmt.Sprintf("%s=%s", key, value))
 }
 
 // InputString 输入字符串
-func (s *Session) InputString(input string, timeout time.Duration) (int, string, error) {
+func (s *Terminal) InputString(input string, timeout time.Duration) (int, string, error) {
 	return s.InputBytes([]byte(input), timeout)
 }
 
 // InputBytes 输入字节
-func (s *Session) InputBytes(input []byte, timeout time.Duration) (int, string, error) {
+func (s *Terminal) InputBytes(input []byte, timeout time.Duration) (int, string, error) {
 	var err error
 	inputBuf := new(bytes.Buffer)
 
@@ -96,13 +96,11 @@ func (s *Session) InputBytes(input []byte, timeout time.Duration) (int, string, 
 }
 
 // InputRune 输入 Rune
-func (s *Session) InputRune(input []rune, timeout time.Duration) (int, string, error) {
+func (s *Terminal) InputRune(input []rune, timeout time.Duration) (int, string, error) {
 	return s.InputString(string(input), timeout)
 }
 
 // Exit 退出
-func (s *Session) Exit(code uint) error {
-	_, err := s.stdin.Write([]byte(fmt.Sprintf("\n exit %d \n", code)))
-	s.session.Wait()
-	return err
+func (s *Terminal) Exit(code uint) error {
+	return nil
 }
