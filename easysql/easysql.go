@@ -76,7 +76,7 @@ func (SQL *SQL) Close() error {
 func (SQL *SQL) Select(tableName string, field []string) *SQL {
 	var allField string
 	allField = strings.Join(field, ",")
-	SQL.fields = "select " + allField + " from " + tableName
+	SQL.fields = "SELECT " + allField + " FROM " + tableName
 	SQL.tableName = tableName
 	return SQL
 }
@@ -85,7 +85,7 @@ func (SQL *SQL) Select(tableName string, field []string) *SQL {
 func (SQL *SQL) Where(cond map[string]string) *SQL {
 	var whereString = ""
 	if len(cond) != 0 {
-		whereString = " where "
+		whereString = " WHERE "
 		for key, value := range cond {
 			if !strings.Contains(key, "=") && !strings.Contains(key, ">") && !strings.Contains(key, "<") {
 				key += "="
@@ -101,7 +101,7 @@ func (SQL *SQL) Where(cond map[string]string) *SQL {
 
 // Limit Limit
 func (SQL *SQL) Limit(number int) *SQL {
-	SQL.limitNumber = " limit " + strconv.Itoa(number)
+	SQL.limitNumber = " LIMIT " + strconv.Itoa(number)
 	return SQL
 }
 
@@ -117,8 +117,13 @@ func (SQL *SQL) OrderByString(orderString ...string) *SQL {
 	return SQL
 }
 
+// ToString 获取目前的 sql 语句
+func (SQL *SQL) ToString() string {
+	return SQL.fields + SQL.whereString + SQL.orderBy + SQL.limitNumber
+}
+
 // Update Update
-func (SQL SQL) Update(tableName string, str map[string]string) (int64, error) {
+func (SQL *SQL) Update(tableName string, str map[string]string) (int64, error) {
 	var tempStr = ""
 	var allValue []interface{}
 	for key, value := range str {
@@ -126,7 +131,7 @@ func (SQL SQL) Update(tableName string, str map[string]string) (int64, error) {
 		allValue = append(allValue, value)
 	}
 	tempStr = strings.TrimSuffix(tempStr, ",")
-	SQL.execString = "update " + tableName + " set " + tempStr
+	SQL.execString = "UPDATE " + tableName + " SET " + tempStr
 	var allStr = SQL.execString + SQL.whereString
 	stmt, err := SQL.conn.Prepare(allStr)
 	if SQL.handlerError(err) {
@@ -146,9 +151,9 @@ func (SQL SQL) Update(tableName string, str map[string]string) (int64, error) {
 }
 
 // Delete 删除方法
-func (SQL SQL) Delete(tableName string) (int64, error) {
+func (SQL *SQL) Delete(tableName string) (int64, error) {
 	var tempStr = ""
-	tempStr = "delete from " + tableName + SQL.whereString
+	tempStr = "DELETE FROM " + tableName + SQL.whereString
 	stmt, err := SQL.conn.Prepare(tempStr)
 	if SQL.handlerError(err) {
 		return 0, err
@@ -166,7 +171,7 @@ func (SQL SQL) Delete(tableName string) (int64, error) {
 }
 
 // Insert 插入方法
-func (SQL SQL) Insert(tableName string, data map[string]string) (int64, error) {
+func (SQL *SQL) Insert(tableName string, data map[string]string) (int64, error) {
 	var allField = ""
 	var allValue = ""
 	var allTrueValue []interface{}
@@ -181,7 +186,7 @@ func (SQL SQL) Insert(tableName string, data map[string]string) (int64, error) {
 	allField = strings.TrimSuffix(allField, ",")
 	allValue = "(" + allValue + ")"
 	allField = "(" + allField + ")"
-	var theStr = "insert into " + tableName + " " + allField + " values " + allValue
+	var theStr = "INSERT INTO " + tableName + " " + allField + " VALUES " + allValue
 	stmt, err := SQL.conn.Prepare(theStr)
 	if SQL.handlerError(err) {
 		return 0, err
@@ -199,8 +204,8 @@ func (SQL SQL) Insert(tableName string, data map[string]string) (int64, error) {
 }
 
 // Pagination 分页查询
-func (SQL SQL) Pagination(Page int, Limit int) (map[string]interface{}, error) {
-	res, err := GetConn().Select(SQL.tableName, []string{"count(*) as count"}).QueryRow()
+func (SQL *SQL) Pagination(Page int, Limit int) (map[string]interface{}, error) {
+	res, err := GetConn().Select(SQL.tableName, []string{"COUNT(*) as count"}).QueryRow()
 	if SQL.handlerError(err) {
 		return nil, err
 	}
@@ -218,7 +223,7 @@ func (SQL SQL) Pagination(Page int, Limit int) (map[string]interface{}, error) {
 	}
 	// 计算偏移量
 	setOff := (Page - 1) * Limit
-	queryString := SQL.fields + SQL.whereString + SQL.orderBy + " limit " + strconv.Itoa(setOff) + "," + strconv.Itoa(Limit)
+	queryString := SQL.fields + SQL.whereString + SQL.orderBy + " LIMIT " + strconv.Itoa(setOff) + "," + strconv.Itoa(Limit)
 	rows, err := SQL.conn.Query(queryString)
 	defer rows.Close()
 	if SQL.handlerError(err) {
@@ -259,8 +264,8 @@ func (SQL SQL) Pagination(Page int, Limit int) (map[string]interface{}, error) {
 }
 
 // QueryAll QueryAll
-func (SQL SQL) QueryAll() ([]map[string]string, error) {
-	var queryString = SQL.fields + SQL.whereString + SQL.orderBy + SQL.limitNumber
+func (SQL *SQL) QueryAll() ([]map[string]string, error) {
+	var queryString = SQL.ToString()
 	rows, err := SQL.conn.Query(queryString)
 	defer rows.Close()
 	if SQL.handlerError(err) {
@@ -297,7 +302,7 @@ func (SQL SQL) QueryAll() ([]map[string]string, error) {
 }
 
 // ExecSQL ExecSQL
-func (SQL SQL) ExecSQL(queryString string) ([]map[string]string, error) {
+func (SQL *SQL) ExecSQL(queryString string) ([]map[string]string, error) {
 	rows, err := SQL.conn.Query(queryString)
 	defer rows.Close()
 	if SQL.handlerError(err) {
@@ -332,8 +337,8 @@ func (SQL SQL) ExecSQL(queryString string) ([]map[string]string, error) {
 }
 
 // QueryRow 查询单行
-func (SQL SQL) QueryRow() (map[string]string, error) {
-	var queryString = SQL.fields + SQL.whereString + SQL.orderBy + SQL.limitNumber
+func (SQL *SQL) QueryRow() (map[string]string, error) {
+	var queryString = SQL.ToString()
 	result, err := SQL.conn.Query(queryString)
 	defer result.Close()
 	if SQL.handlerError(err) {
