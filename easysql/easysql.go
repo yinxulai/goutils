@@ -1,8 +1,4 @@
-package sql
-
-// 来自 https://github.com/tophubs/TopList/blob/master/Common/Db.go
-// 感谢 tophubs team
-// Alain 整理
+package easysql
 
 import (
 	"database/sql"
@@ -38,12 +34,12 @@ type Config struct {
 	Driver string
 }
 
-// 初始化连接池
-func init() {
+// Init 初始化连接池
+func Init(driver, source string) {
 	sqlStruct := SQL{}
 	sqlStruct.config = new(Config)
-	sqlStruct.config.Driver = ""
-	sqlStruct.config.Source = ""
+	sqlStruct.config.Driver = driver
+	sqlStruct.config.Source = source
 	db, err := sql.Open(sqlStruct.config.Driver, sqlStruct.config.Source)
 	sqlStruct.checkErr(err)
 	db.SetMaxOpenConns(2000)             // 最大链接
@@ -51,17 +47,18 @@ func init() {
 	db.SetConnMaxLifetime(7 * time.Hour) // 设置最大生成周期是7个小时
 }
 
+// GetConn GetConn
+func GetConn() *SQL {
+	sql := new(SQL)
+	sql.conn = db
+	return sql
+}
+
 // checkErr 检查错误
 func (SQL SQL) checkErr(err error) {
 	if err != nil {
 		log.Fatal("错误：", err)
 	}
-}
-
-// GetConn GetConn
-func (SQL SQL) GetConn() *SQL {
-	SQL.conn = db
-	return &SQL
 }
 
 // Close Close
@@ -135,7 +132,6 @@ func (SQL SQL) Update(tableName string, str map[string]string) int64 {
 	SQL.checkErr(err)
 	rows, err := res.RowsAffected()
 	return rows
-
 }
 
 // Delete 删除方法
@@ -181,7 +177,7 @@ func (SQL SQL) Insert(tableName string, data map[string]string) int64 {
 
 // Pagination 分页查询
 func (SQL SQL) Pagination(Page int, Limit int) map[string]interface{} {
-	res := SQL.GetConn().Select(SQL.tableName, []string{"count(*) as count"}).QueryRow()
+	res := GetConn().Select(SQL.tableName, []string{"count(*) as count"}).QueryRow()
 	count, _ := strconv.Atoi(res["count"])
 	// 计算总页码数
 	totalPage := int(math.Ceil(float64(count) / float64(Limit)))
@@ -317,3 +313,7 @@ func (SQL SQL) QueryRow() map[string]string {
 	}
 	return tempRow
 }
+
+// 来自 https://github.com/tophubs/TopList/blob/master/Common/Db.go
+// 感谢 tophubs
+// Alain 整理
