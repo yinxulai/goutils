@@ -75,7 +75,12 @@ func (SQL *SQL) Close() error {
 // Select 查询方法
 func (SQL *SQL) Select(tableName string, field []string) *SQL {
 	var allField string
-	allField = strings.Join(field, ",")
+	if field == nil || len(field) <= 0 {
+		allField = "*"
+	} else {
+		allField = strings.Join(field, ",")
+	}
+
 	SQL.fields = "SELECT " + allField + " FROM " + tableName
 	SQL.tableName = tableName
 	return SQL
