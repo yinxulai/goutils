@@ -72,13 +72,6 @@ func (SQL *SQL) Close() error {
 	return nil
 }
 
-// Count 统计
-func (SQL *SQL) Count(tableName string) *SQL {
-	SQL.fields = "select count(*) as count from " + tableName
-	SQL.tableName = tableName
-	return SQL
-}
-
 // Select 查询方法
 func (SQL *SQL) Select(tableName string, field []string) *SQL {
 	var allField string
