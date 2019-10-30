@@ -13,7 +13,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
-var db *sql.DB
+var globalDB *sql.DB
 var config *Config
 
 // SQL 结构化的 sql 语句
@@ -36,26 +36,27 @@ type Config struct {
 
 // Init 初始化连接池
 func Init(driver, source string) {
-	sqlStruct := SQL{}
+	sqlStruct := new(SQL)
 	sqlStruct.config = new(Config)
 	sqlStruct.config.Driver = driver
 	sqlStruct.config.Source = source
-	db, err := sql.Open(sqlStruct.config.Driver, sqlStruct.config.Source)
+	newDB, err := sql.Open(sqlStruct.config.Driver, sqlStruct.config.Source)
 	sqlStruct.checkErr(err)
-	db.SetMaxOpenConns(2000)             // 最大链接
-	db.SetMaxIdleConns(1000)             // 空闲连接，也就是连接池里面的数量
-	db.SetConnMaxLifetime(7 * time.Hour) // 设置最大生成周期是7个小时
+	newDB.SetMaxOpenConns(2000)             // 最大链接
+	newDB.SetMaxIdleConns(1000)             // 空闲连接，也就是连接池里面的数量
+	newDB.SetConnMaxLifetime(7 * time.Hour) // 设置最大生成周期是7个小时
+	globalDB = newDB
 }
 
 // GetConn GetConn
 func GetConn() *SQL {
 	sql := new(SQL)
-	sql.conn = db
+	sql.conn = globalDB
 	return sql
 }
 
 // checkErr 检查错误
-func (SQL SQL) checkErr(err error) {
+func (SQL *SQL) checkErr(err error) {
 	if err != nil {
 		log.Fatal("错误：", err)
 	}
