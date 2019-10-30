@@ -1,12 +1,7 @@
-package sql
-
-// 来自 https://github.com/tophubs/TopList/blob/master/Common/Db.go
-// 感谢 tophubs team
-// Alain 整理
+package easysql
 
 import (
 	"database/sql"
-	"fmt"
 	"log"
 	"math"
 	"strconv"
@@ -17,7 +12,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
-var db *sql.DB
+var globalDB *sql.DB
 var config *Config
 
 // SQL 结构化的 sql 语句
@@ -38,30 +33,34 @@ type Config struct {
 	Driver string
 }
 
-// 初始化连接池
-func init() {
-	sqlStruct := SQL{}
+// Init 初始化连接池
+func Init(driver, source string) {
+	sqlStruct := new(SQL)
 	sqlStruct.config = new(Config)
-	sqlStruct.config.Driver = ""
-	sqlStruct.config.Source = ""
-	db, err := sql.Open(sqlStruct.config.Driver, sqlStruct.config.Source)
-	sqlStruct.checkErr(err)
-	db.SetMaxOpenConns(2000)             // 最大链接
-	db.SetMaxIdleConns(1000)             // 空闲连接，也就是连接池里面的数量
-	db.SetConnMaxLifetime(7 * time.Hour) // 设置最大生成周期是7个小时
-}
-
-// checkErr 检查错误
-func (SQL SQL) checkErr(err error) {
-	if err != nil {
-		log.Fatal("错误：", err)
-	}
+	sqlStruct.config.Driver = driver
+	sqlStruct.config.Source = source
+	newDB, err := sql.Open(sqlStruct.config.Driver, sqlStruct.config.Source)
+	sqlStruct.handlerError(err)
+	newDB.SetMaxOpenConns(2000)             // 最大链接
+	newDB.SetMaxIdleConns(1000)             // 空闲连接，也就是连接池里面的数量
+	newDB.SetConnMaxLifetime(7 * time.Hour) // 设置最大生成周期是7个小时
+	globalDB = newDB
 }
 
 // GetConn GetConn
-func (SQL SQL) GetConn() *SQL {
-	SQL.conn = db
-	return &SQL
+func GetConn() *SQL {
+	sql := new(SQL)
+	sql.conn = globalDB
+	return sql
+}
+
+// handlerError 检查错误
+func (SQL *SQL) handlerError(err error) bool {
+	if err != nil {
+		log.Fatal("错误：", err)
+		return true
+	}
+	return false
 }
 
 // Close Close
@@ -76,8 +75,13 @@ func (SQL *SQL) Close() error {
 // Select 查询方法
 func (SQL *SQL) Select(tableName string, field []string) *SQL {
 	var allField string
-	allField = strings.Join(field, ",")
-	SQL.fields = "select " + allField + " from " + tableName
+	if field == nil || len(field) <= 0 {
+		allField = "*"
+	} else {
+		allField = strings.Join(field, ",")
+	}
+
+	SQL.fields = "SELECT " + allField + " FROM " + tableName
 	SQL.tableName = tableName
 	return SQL
 }
@@ -86,7 +90,7 @@ func (SQL *SQL) Select(tableName string, field []string) *SQL {
 func (SQL *SQL) Where(cond map[string]string) *SQL {
 	var whereString = ""
 	if len(cond) != 0 {
-		whereString = " where "
+		whereString = " WHERE "
 		for key, value := range cond {
 			if !strings.Contains(key, "=") && !strings.Contains(key, ">") && !strings.Contains(key, "<") {
 				key += "="
@@ -102,7 +106,7 @@ func (SQL *SQL) Where(cond map[string]string) *SQL {
 
 // Limit Limit
 func (SQL *SQL) Limit(number int) *SQL {
-	SQL.limitNumber = " limit " + strconv.Itoa(number)
+	SQL.limitNumber = " LIMIT " + strconv.Itoa(number)
 	return SQL
 }
 
@@ -118,8 +122,13 @@ func (SQL *SQL) OrderByString(orderString ...string) *SQL {
 	return SQL
 }
 
+// ToString 获取目前的 sql 语句
+func (SQL *SQL) ToString() string {
+	return SQL.fields + SQL.whereString + SQL.orderBy + SQL.limitNumber
+}
+
 // Update Update
-func (SQL SQL) Update(tableName string, str map[string]string) int64 {
+func (SQL *SQL) Update(tableName string, str map[string]string) (int64, error) {
 	var tempStr = ""
 	var allValue []interface{}
 	for key, value := range str {
@@ -127,31 +136,47 @@ func (SQL SQL) Update(tableName string, str map[string]string) int64 {
 		allValue = append(allValue, value)
 	}
 	tempStr = strings.TrimSuffix(tempStr, ",")
-	SQL.execString = "update " + tableName + " set " + tempStr
+	SQL.execString = "UPDATE " + tableName + " SET " + tempStr
 	var allStr = SQL.execString + SQL.whereString
 	stmt, err := SQL.conn.Prepare(allStr)
-	SQL.checkErr(err)
-	res, err := stmt.Exec(allValue...)
-	SQL.checkErr(err)
-	rows, err := res.RowsAffected()
-	return rows
+	if SQL.handlerError(err) {
+		return 0, err
+	}
 
+	res, err := stmt.Exec(allValue...)
+	if SQL.handlerError(err) {
+		return 0, err
+	}
+	rows, err := res.RowsAffected()
+	if SQL.handlerError(err) {
+		return 0, err
+	}
+
+	return rows, nil
 }
 
 // Delete 删除方法
-func (SQL SQL) Delete(tableName string) int64 {
+func (SQL *SQL) Delete(tableName string) (int64, error) {
 	var tempStr = ""
-	tempStr = "delete from " + tableName + SQL.whereString
+	tempStr = "DELETE FROM " + tableName + SQL.whereString
 	stmt, err := SQL.conn.Prepare(tempStr)
-	SQL.checkErr(err)
+	if SQL.handlerError(err) {
+		return 0, err
+	}
 	res, err := stmt.Exec()
-	SQL.checkErr(err)
+	if SQL.handlerError(err) {
+		return 0, err
+	}
 	rows, err := res.RowsAffected()
-	return rows
+	if SQL.handlerError(err) {
+		return 0, err
+	}
+
+	return rows, nil
 }
 
 // Insert 插入方法
-func (SQL SQL) Insert(tableName string, data map[string]string) int64 {
+func (SQL *SQL) Insert(tableName string, data map[string]string) (int64, error) {
 	var allField = ""
 	var allValue = ""
 	var allTrueValue []interface{}
@@ -166,23 +191,33 @@ func (SQL SQL) Insert(tableName string, data map[string]string) int64 {
 	allField = strings.TrimSuffix(allField, ",")
 	allValue = "(" + allValue + ")"
 	allField = "(" + allField + ")"
-	var theStr = "insert into " + tableName + " " + allField + " values " + allValue
+	var theStr = "INSERT INTO " + tableName + " " + allField + " VALUES " + allValue
 	stmt, err := SQL.conn.Prepare(theStr)
-	SQL.checkErr(err)
-	res, err := stmt.Exec(allTrueValue...)
-	if err != nil {
-		fmt.Println(err.Error())
-		return 0
+	if SQL.handlerError(err) {
+		return 0, err
 	}
-	SQL.checkErr(err)
+	res, err := stmt.Exec(allTrueValue...)
+	if SQL.handlerError(err) {
+		return 0, err
+	}
+	SQL.handlerError(err)
 	id, err := res.LastInsertId()
-	return id
+	if SQL.handlerError(err) {
+		return 0, err
+	}
+	return id, nil
 }
 
 // Pagination 分页查询
-func (SQL SQL) Pagination(Page int, Limit int) map[string]interface{} {
-	res := SQL.GetConn().Select(SQL.tableName, []string{"count(*) as count"}).QueryRow()
-	count, _ := strconv.Atoi(res["count"])
+func (SQL *SQL) Pagination(Page int, Limit int) (map[string]interface{}, error) {
+	res, err := GetConn().Select(SQL.tableName, []string{"COUNT(*) as count"}).QueryRow()
+	if SQL.handlerError(err) {
+		return nil, err
+	}
+	count, err := strconv.Atoi(res["count"])
+	if SQL.handlerError(err) {
+		return nil, err
+	}
 	// 计算总页码数
 	totalPage := int(math.Ceil(float64(count) / float64(Limit)))
 	if Page > totalPage {
@@ -193,12 +228,16 @@ func (SQL SQL) Pagination(Page int, Limit int) map[string]interface{} {
 	}
 	// 计算偏移量
 	setOff := (Page - 1) * Limit
-	queryString := SQL.fields + SQL.whereString + SQL.orderBy + " limit " + strconv.Itoa(setOff) + "," + strconv.Itoa(Limit)
+	queryString := SQL.fields + SQL.whereString + SQL.orderBy + " LIMIT " + strconv.Itoa(setOff) + "," + strconv.Itoa(Limit)
 	rows, err := SQL.conn.Query(queryString)
 	defer rows.Close()
-	SQL.checkErr(err)
+	if SQL.handlerError(err) {
+		return nil, err
+	}
 	Column, err := rows.Columns()
-	SQL.checkErr(err)
+	if SQL.handlerError(err) {
+		return nil, err
+	}
 	// 创建一个查询字段类型的slice
 	values := make([]sql.RawBytes, len(Column))
 	// 创建一个任意字段类型的slice
@@ -212,7 +251,9 @@ func (SQL SQL) Pagination(Page int, Limit int) map[string]interface{} {
 	for rows.Next() {
 		// 把存放字段的元素批量放进去
 		err = rows.Scan(scanArgs...)
-		SQL.checkErr(err)
+		if SQL.handlerError(err) {
+			return nil, err
+		}
 		tempRow := make(map[string]string, len(Column))
 		for i, col := range values {
 			var key = Column[i]
@@ -224,17 +265,21 @@ func (SQL SQL) Pagination(Page int, Limit int) map[string]interface{} {
 	returnData["totalPage"] = totalPage
 	returnData["currentPage"] = Page
 	returnData["rows"] = allRows
-	return returnData
+	return returnData, nil
 }
 
 // QueryAll QueryAll
-func (SQL SQL) QueryAll() []map[string]string {
-	var queryString = SQL.fields + SQL.whereString + SQL.orderBy + SQL.limitNumber
+func (SQL *SQL) QueryAll() ([]map[string]string, error) {
+	var queryString = SQL.ToString()
 	rows, err := SQL.conn.Query(queryString)
 	defer rows.Close()
-	SQL.checkErr(err)
+	if SQL.handlerError(err) {
+		return nil, err
+	}
 	Column, err := rows.Columns()
-	SQL.checkErr(err)
+	if SQL.handlerError(err) {
+		return nil, err
+	}
 	// 创建一个查询字段类型的slice
 	values := make([]sql.RawBytes, len(Column))
 	// 创建一个任意字段类型的slice
@@ -248,7 +293,9 @@ func (SQL SQL) QueryAll() []map[string]string {
 	for rows.Next() {
 		// 把存放字段的元素批量放进去
 		err = rows.Scan(scanArgs...)
-		SQL.checkErr(err)
+		if SQL.handlerError(err) {
+			return nil, err
+		}
 		tempRow := make(map[string]string, len(Column))
 		for i, col := range values {
 			var key = Column[i]
@@ -256,16 +303,20 @@ func (SQL SQL) QueryAll() []map[string]string {
 		}
 		allRows = append(allRows, tempRow)
 	}
-	return allRows
+	return allRows, nil
 }
 
 // ExecSQL ExecSQL
-func (SQL SQL) ExecSQL(queryString string) []map[string]string {
+func (SQL *SQL) ExecSQL(queryString string) ([]map[string]string, error) {
 	rows, err := SQL.conn.Query(queryString)
 	defer rows.Close()
-	SQL.checkErr(err)
+	if SQL.handlerError(err) {
+		return nil, err
+	}
 	Column, err := rows.Columns()
-	SQL.checkErr(err)
+	if SQL.handlerError(err) {
+		return nil, err
+	}
 	// 创建一个查询字段类型的slice
 	values := make([]sql.RawBytes, len(Column))
 	// 创建一个任意字段类型的slice
@@ -279,7 +330,7 @@ func (SQL SQL) ExecSQL(queryString string) []map[string]string {
 	for rows.Next() {
 		// 把存放字段的元素批量放进去
 		err = rows.Scan(scanArgs...)
-		SQL.checkErr(err)
+		SQL.handlerError(err)
 		tempRow := make(map[string]string, len(Column))
 		for i, col := range values {
 			var key = Column[i]
@@ -287,15 +338,17 @@ func (SQL SQL) ExecSQL(queryString string) []map[string]string {
 		}
 		allRows = append(allRows, tempRow)
 	}
-	return allRows
+	return allRows, nil
 }
 
 // QueryRow 查询单行
-func (SQL SQL) QueryRow() map[string]string {
-	var queryString = SQL.fields + SQL.whereString + SQL.orderBy + SQL.limitNumber
+func (SQL *SQL) QueryRow() (map[string]string, error) {
+	var queryString = SQL.ToString()
 	result, err := SQL.conn.Query(queryString)
 	defer result.Close()
-	SQL.checkErr(err)
+	if SQL.handlerError(err) {
+		return nil, err
+	}
 	Column, err := result.Columns()
 	// 创建一个查询字段类型的slice的键值对
 	values := make([]sql.RawBytes, len(Column))
@@ -308,12 +361,18 @@ func (SQL SQL) QueryRow() map[string]string {
 
 	for result.Next() {
 		err = result.Scan(scanArgs...)
-		SQL.checkErr(err)
+		if SQL.handlerError(err) {
+			return nil, err
+		}
 	}
 	tempRow := make(map[string]string, len(Column))
 	for i, col := range values {
 		var key = Column[i]
 		tempRow[key] = string(col)
 	}
-	return tempRow
+	return tempRow, nil
 }
+
+// 来自 https://github.com/tophubs/TopList/blob/master/Common/Db.go
+// 感谢 tophubs
+// Alain 整理

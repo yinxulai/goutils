@@ -27,6 +27,11 @@ func AddFile(path string) {
 	globalService.AddFile(path)
 }
 
+// LoadFlag 加载启动命令参数
+func LoadFlag() {
+	globalService.loadFlag()
+}
+
 // SetStandard 设置定义
 func SetStandard(key string, deft string, required bool, description string) {
 	globalService.SetStandard(key, deft, required, description)
