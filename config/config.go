@@ -57,14 +57,8 @@ func (c *configService) Get(key string) (value string, err error) {
 		}
 	}
 
-	// 如果没有读取到数据,且有默认值
-	if *c.data[key] == "" && c.standards[key].Default != "" {
-		return c.standards[key].Default, nil
-	}
-
-	// 如果没有读取到数据,且没有默认值
-	if *c.data[key] == "" && c.standards[key].Default == "" {
-		return "", fmt.Errorf("%s is nil", key)
+	if *c.data[key] == "" {
+		return "", fmt.Errorf("config: %s is nil", key)
 	}
 
 	return *c.data[key], nil
