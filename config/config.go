@@ -120,20 +120,14 @@ func (c *configService) loadFlag() {
 
 	// 如果用户没有覆盖默认的 config 行为
 	if _, exists := c.standards["config"]; !exists {
-		flag.StringVar(&configPath, "config", "", "指定配置文件,将覆盖程序内设置")
-	}
-
-	for _, standard := range c.standards {
-		var value string
-		cache[standard.Key] = &value
-		flag.StringVar(&value, standard.Key, standard.Default, standard.Description)
+		c.SetStandard("config", "", false, "指定配置文件,将覆盖程序内设置")
 	}
 
 	flag.Parse()
 
 	// 用户指定了,追加进去配置文件
 	if configPath != "" {
-		c.files = append(c.files, configPath)
+		c.files = append(c.files, *cache["config"])
 	}
 
 	for key, value := range cache {
@@ -180,19 +174,25 @@ func (c *configService) loadEnv() {
 
 // SetStandard 设置定义
 func (c *configService) SetStandard(key string, deft string, required bool, description string) {
-
 	c.RLock()
 	defer c.RUnlock()
-	c.checked = false
-	stan := new(standard)
 
+	// 恢复为未 check 状态
+	c.checked = false
+
+	// 记录
+	stan := new(standard)
 	stan.Key = key
 	stan.Default = deft
 	stan.Required = required
 	stan.Description = description
-
 	c.standards[stan.Key] = *stan
-	c.data[stan.Key] = &stan.Default
+
+	// 注册 flag
+	var value string
+	value = stan.Default
+	c.data[stan.Key] = &value
+	flag.StringVar(&value, key, stan.Default, description)
 }
 
 // AddFile 加载文件
