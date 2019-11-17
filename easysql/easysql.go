@@ -70,7 +70,7 @@ func (SQL *SQL) handlerError(err error) bool {
 	return false
 }
 
-// Close Close
+// Close 关闭数据库连接（不是释放返回连接池）
 func (SQL *SQL) Close() error {
 	if SQL.tx != nil {
 		// 如果有事务就回滚
