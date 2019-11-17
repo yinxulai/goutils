@@ -489,6 +489,7 @@ func (SQL *SQL) Commit() error {
 	return nil
 }
 
+// username:password@tcp(localhost:3306)/database?charset=utf8mb4
 // 事务支持参考 https://github.com/alberliu/session，https://www.jianshu.com/p/2a144332c3db
 // 来自 https://github.com/tophubs/TopList/blob/master/Common/Db.go
 // 感谢 tophubs
