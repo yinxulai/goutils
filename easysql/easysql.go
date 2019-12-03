@@ -12,6 +12,8 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
+// TODO: SQL 注入问题
+
 var globalDB *sql.DB
 var config *Config
 
@@ -98,7 +100,7 @@ func (SQL *SQL) Select(tableName string, field []string) *SQL {
 		allField = strings.Join(field, ",")
 	}
 
-	SQL.fields = "SELECT " + allField + " FROM " + tableName
+	SQL.fields = "SELECT " + allField + " FROM `" + tableName + "`"
 	SQL.tableName = tableName
 	return SQL
 }
@@ -153,7 +155,7 @@ func (SQL *SQL) Update(tableName string, str map[string]string) (int64, error) {
 		allValue = append(allValue, value)
 	}
 	tempStr = strings.TrimSuffix(tempStr, ",")
-	SQL.execString = "UPDATE " + tableName + " SET " + tempStr
+	SQL.execString = "UPDATE `" + tableName + "` SET " + tempStr
 	var allStr = SQL.execString + SQL.whereString
 
 	var err error
@@ -183,7 +185,7 @@ func (SQL *SQL) Update(tableName string, str map[string]string) (int64, error) {
 // Delete 删除方法
 func (SQL *SQL) Delete(tableName string) (int64, error) {
 	var tempStr = ""
-	tempStr = "DELETE FROM " + tableName + SQL.whereString
+	tempStr = "DELETE FROM `" + tableName + "`" + SQL.whereString
 
 	var err error
 	var stmt *sql.Stmt
@@ -224,7 +226,7 @@ func (SQL *SQL) Insert(tableName string, data map[string]string) (int64, error) 
 	allField = strings.TrimSuffix(allField, ",")
 	allValue = "(" + allValue + ")"
 	allField = "(" + allField + ")"
-	var theStr = "INSERT INTO " + tableName + " " + allField + " VALUES " + allValue
+	var theStr = "INSERT INTO `" + tableName + "` " + allField + " VALUES " + allValue
 
 	var err error
 	var stmt *sql.Stmt
