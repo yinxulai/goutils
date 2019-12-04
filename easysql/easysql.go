@@ -12,19 +12,28 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
+// TODO: SQL 注入问题
+
 var globalDB *sql.DB
 var config *Config
 
+const beginStatus = 1
+
 // SQL 结构化的 sql 语句
 type SQL struct {
-	conn        *sql.DB // 数据库连接
+	db          *sql.DB // 数据库连接
 	fields      string  // 字段
 	orderBy     string  // 排序条件
 	tableName   string  // 表名
 	execString  string  // 执行sql语句
 	limitNumber string  // 限制条数
 	whereString string  // where语句
-	config      *Config
+
+	tx           *sql.Tx // 原生事务
+	commitSign   int8    // 提交标记，控制是否提交事务
+	rollbackSign bool    // 回滚标记，控制是否回滚事务
+
+	config *Config
 }
 
 // Config 配置
@@ -50,7 +59,7 @@ func Init(driver, source string) {
 // GetConn GetConn
 func GetConn() *SQL {
 	sql := new(SQL)
-	sql.conn = globalDB
+	sql.db = globalDB
 	return sql
 }
 
@@ -63,11 +72,21 @@ func (SQL *SQL) handlerError(err error) bool {
 	return false
 }
 
-// Close Close
+// Close 关闭数据库连接（不是释放返回连接池）
 func (SQL *SQL) Close() error {
-	err := SQL.conn.Close()
-	if err != nil {
-		return err
+	if SQL.tx != nil {
+		// 如果有事务就回滚
+		err := SQL.Rollback()
+		if err != nil {
+			return err
+		}
+	}
+
+	if SQL.db != nil {
+		err := SQL.db.Close()
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -81,7 +100,7 @@ func (SQL *SQL) Select(tableName string, field []string) *SQL {
 		allField = strings.Join(field, ",")
 	}
 
-	SQL.fields = "SELECT " + allField + " FROM " + tableName
+	SQL.fields = "SELECT " + allField + " FROM `" + tableName + "`"
 	SQL.tableName = tableName
 	return SQL
 }
@@ -136,9 +155,17 @@ func (SQL *SQL) Update(tableName string, str map[string]string) (int64, error) {
 		allValue = append(allValue, value)
 	}
 	tempStr = strings.TrimSuffix(tempStr, ",")
-	SQL.execString = "UPDATE " + tableName + " SET " + tempStr
+	SQL.execString = "UPDATE `" + tableName + "` SET " + tempStr
 	var allStr = SQL.execString + SQL.whereString
-	stmt, err := SQL.conn.Prepare(allStr)
+
+	var err error
+	var stmt *sql.Stmt
+	if SQL.tx != nil {
+		stmt, err = SQL.tx.Prepare(allStr)
+	} else {
+		stmt, err = SQL.db.Prepare(allStr)
+	}
+
 	if SQL.handlerError(err) {
 		return 0, err
 	}
@@ -158,8 +185,16 @@ func (SQL *SQL) Update(tableName string, str map[string]string) (int64, error) {
 // Delete 删除方法
 func (SQL *SQL) Delete(tableName string) (int64, error) {
 	var tempStr = ""
-	tempStr = "DELETE FROM " + tableName + SQL.whereString
-	stmt, err := SQL.conn.Prepare(tempStr)
+	tempStr = "DELETE FROM `" + tableName + "`" + SQL.whereString
+
+	var err error
+	var stmt *sql.Stmt
+	if SQL.tx != nil {
+		stmt, err = SQL.tx.Prepare(tempStr)
+	} else {
+		stmt, err = SQL.db.Prepare(tempStr)
+	}
+
 	if SQL.handlerError(err) {
 		return 0, err
 	}
@@ -191,8 +226,16 @@ func (SQL *SQL) Insert(tableName string, data map[string]string) (int64, error) 
 	allField = strings.TrimSuffix(allField, ",")
 	allValue = "(" + allValue + ")"
 	allField = "(" + allField + ")"
-	var theStr = "INSERT INTO " + tableName + " " + allField + " VALUES " + allValue
-	stmt, err := SQL.conn.Prepare(theStr)
+	var theStr = "INSERT INTO `" + tableName + "` " + allField + " VALUES " + allValue
+
+	var err error
+	var stmt *sql.Stmt
+	if SQL.tx != nil {
+		stmt, err = SQL.tx.Prepare(theStr)
+	} else {
+		stmt, err = SQL.db.Prepare(theStr)
+	}
+
 	if SQL.handlerError(err) {
 		return 0, err
 	}
@@ -229,7 +272,7 @@ func (SQL *SQL) Pagination(Page int, Limit int) (map[string]interface{}, error) 
 	// 计算偏移量
 	setOff := (Page - 1) * Limit
 	queryString := SQL.fields + SQL.whereString + SQL.orderBy + " LIMIT " + strconv.Itoa(setOff) + "," + strconv.Itoa(Limit)
-	rows, err := SQL.conn.Query(queryString)
+	rows, err := SQL.db.Query(queryString)
 	defer rows.Close()
 	if SQL.handlerError(err) {
 		return nil, err
@@ -271,7 +314,7 @@ func (SQL *SQL) Pagination(Page int, Limit int) (map[string]interface{}, error) 
 // QueryAll QueryAll
 func (SQL *SQL) QueryAll() ([]map[string]string, error) {
 	var queryString = SQL.ToString()
-	rows, err := SQL.conn.Query(queryString)
+	rows, err := SQL.db.Query(queryString)
 	defer rows.Close()
 	if SQL.handlerError(err) {
 		return nil, err
@@ -308,7 +351,7 @@ func (SQL *SQL) QueryAll() ([]map[string]string, error) {
 
 // ExecSQL ExecSQL
 func (SQL *SQL) ExecSQL(queryString string) ([]map[string]string, error) {
-	rows, err := SQL.conn.Query(queryString)
+	rows, err := SQL.db.Query(queryString)
 	defer rows.Close()
 	if SQL.handlerError(err) {
 		return nil, err
@@ -344,7 +387,7 @@ func (SQL *SQL) ExecSQL(queryString string) ([]map[string]string, error) {
 // QueryRow 查询单行
 func (SQL *SQL) QueryRow() (map[string]string, error) {
 	var queryString = SQL.ToString()
-	result, err := SQL.conn.Query(queryString)
+	result, err := SQL.db.Query(queryString)
 	defer result.Close()
 	if SQL.handlerError(err) {
 		return nil, err
@@ -373,6 +416,83 @@ func (SQL *SQL) QueryRow() (map[string]string, error) {
 	return tempRow, nil
 }
 
+// RawTX 获取原始事务对象
+func (SQL *SQL) RawTX() *sql.Tx {
+	if SQL.tx != nil {
+		return SQL.tx
+	}
+	return nil
+}
+
+// RawDB 获取原始 DB 对象
+func (SQL *SQL) RawDB() *sql.DB {
+	if SQL.db != nil {
+		return SQL.db
+	}
+	return nil
+}
+
+// Begin 开启事务
+// 默认只有写操作会进入事务、读取还是使用默认的
+func (SQL *SQL) Begin() error {
+	SQL.rollbackSign = true
+	if SQL.tx == nil {
+		tx, err := SQL.db.Begin()
+		if err != nil {
+			return err
+		}
+		SQL.tx = tx
+		SQL.commitSign = beginStatus
+		return nil
+	}
+	SQL.commitSign++
+	return nil
+}
+
+// Rollback 回滚事务
+// 会回滚本次的全部事务、范围不是最近的一次 Begin
+// 而是本 SQL 第一次 Begin 后所有的操作
+func (SQL *SQL) Rollback() error {
+	if SQL.tx != nil && SQL.rollbackSign == true {
+		err := SQL.tx.Rollback()
+		if err != nil {
+			return err
+		}
+		SQL.tx = nil
+		return nil
+	}
+	return nil
+}
+
+// Commit 提交事务
+// Begin Commit 必须一一对应
+// 嵌套模型如下
+// {开启 commitSign = 1
+// 	{ 开启 commitSign = 2
+// 		{ 开启 commitSign = 3
+// 	 } commitSign = 3 提交
+// 	} commitSign = 2 提交
+// } commitSign = 1 提交
+func (SQL *SQL) Commit() error {
+	SQL.rollbackSign = false
+	if SQL.tx != nil {
+		if SQL.commitSign == beginStatus {
+			err := SQL.tx.Commit()
+			if err != nil {
+				return err
+			}
+			SQL.tx = nil
+			return nil
+		} else {
+			SQL.commitSign--
+		}
+		return nil
+	}
+	return nil
+}
+
+// username:password@tcp(localhost:3306)/database?charset=utf8mb4
+// 事务支持参考 https://github.com/alberliu/session，https://www.jianshu.com/p/2a144332c3db
 // 来自 https://github.com/tophubs/TopList/blob/master/Common/Db.go
 // 感谢 tophubs
 // Alain 整理
