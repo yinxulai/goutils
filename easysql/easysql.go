@@ -91,6 +91,12 @@ func (SQL *SQL) Close() error {
 	return nil
 }
 
+// Table 查询方法
+func (SQL *SQL) Table(tableName string) *SQL {
+	SQL.tableName = tableName
+	return SQL
+}
+
 // Select 查询方法
 func (SQL *SQL) Select(tableName string, field []string) *SQL {
 	var allField string
@@ -114,7 +120,8 @@ func (SQL *SQL) Where(cond map[string]string) *SQL {
 			if !strings.Contains(key, "=") && !strings.Contains(key, ">") && !strings.Contains(key, "<") {
 				key += "="
 			}
-			whereString += key + "'" + value + "'" + " AND "
+
+			whereString += key + "" + value + "" + " AND "
 		}
 	}
 	// 删除所有字段最后一个
@@ -134,9 +141,9 @@ func (SQL *SQL) OrderByString(orderString ...string) *SQL {
 	if len(orderString) > 2 || len(orderString) <= 0 {
 		log.Fatal("传入参数错误")
 	} else if len(orderString) == 1 {
-		SQL.orderBy = " ORDER BY " + orderString[0] + " ASC"
+		SQL.orderBy = " ORDER BY `" + orderString[0] + "` ASC"
 	} else {
-		SQL.orderBy = " ORDER BY " + orderString[0] + " " + orderString[1]
+		SQL.orderBy = " ORDER BY `" + orderString[0] + "` " + orderString[1]
 	}
 	return SQL
 }
@@ -253,7 +260,7 @@ func (SQL *SQL) Insert(tableName string, data map[string]string) (int64, error) 
 
 // Pagination 分页查询
 func (SQL *SQL) Pagination(Page int, Limit int) (map[string]interface{}, error) {
-	res, err := GetConn().Select(SQL.tableName, []string{"COUNT(*) as count"}).QueryRow()
+	res, err := SQL.Select(SQL.tableName, []string{"COUNT(*) as count"}).QueryRow()
 	if SQL.handlerError(err) {
 		return nil, err
 	}
@@ -261,6 +268,7 @@ func (SQL *SQL) Pagination(Page int, Limit int) (map[string]interface{}, error) 
 	if SQL.handlerError(err) {
 		return nil, err
 	}
+
 	// 计算总页码数
 	totalPage := int(math.Ceil(float64(count) / float64(Limit)))
 	if Page > totalPage {
@@ -386,8 +394,7 @@ func (SQL *SQL) ExecSQL(queryString string) ([]map[string]string, error) {
 
 // QueryRow 查询单行
 func (SQL *SQL) QueryRow() (map[string]string, error) {
-	var queryString = SQL.ToString()
-	result, err := SQL.db.Query(queryString)
+	result, err := SQL.db.Query(SQL.ToString())
 	defer result.Close()
 	if SQL.handlerError(err) {
 		return nil, err
