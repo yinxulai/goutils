@@ -1,7 +1,7 @@
 package config
 
 // globalService Config
-var globalService *configService
+var globalService *Service
 
 func init() {
 	globalService = New()
