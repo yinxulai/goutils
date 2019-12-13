@@ -18,10 +18,12 @@ func Init(driver, source string) {
 	db := sqlx.MustConnect(driver, source)
 	globalStmtMap = make(map[string]*sqlx.Stmt)
 	globalNamedStmtMap = make(map[string]*sqlx.NamedStmt)
+	db.MapperFunc(func(name string) string { return name })
 	db.SetConnMaxLifetime(30 * time.Minute) // 最大存活周期 30 分钟
 	db.SetMaxIdleConns(10)
 	db.SetMaxOpenConns(20)
 	globalDB = db
+
 	initd = true
 }
 
@@ -46,6 +48,7 @@ func CreateStmt(sql string) *sqlx.Stmt {
 	if err != nil {
 		panic(err)
 	}
+
 	globalStmtMap[sql] = stmt
 	return globalStmtMap[sql]
 }
