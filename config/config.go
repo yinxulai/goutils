@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 	"sync"
 
@@ -18,16 +19,17 @@ type standard struct {
 	Description string
 }
 
-func New() *configService {
-	configService := new(configService)
+// New New
+func New() *Service {
+	configService := new(Service)
 	configService.files = []string{}
 	configService.data = make(map[string]*string)
 	configService.standards = make(map[string]standard)
 	return configService
 }
 
-// configService 配置
-type configService struct {
+// Service 配置
+type Service struct {
 	loaded    bool     // 加载完成
 	checked   bool     // 检查完成
 	files     []string // 待加载的文件
@@ -37,14 +39,14 @@ type configService struct {
 }
 
 // Set 获取一个配置
-func (c *configService) Set(key string, value string) {
+func (c *Service) Set(key string, value string) {
 	c.RLock()
 	defer c.RUnlock()
 	c.data[key] = &value
 }
 
 // Get 获取一个配置
-func (c *configService) Get(key string) (value string, err error) {
+func (c *Service) Get(key string) (value string, err error) {
 	if !c.checked {
 		if err = c.check(); err != nil {
 			return "", err
@@ -65,7 +67,7 @@ func (c *configService) Get(key string) (value string, err error) {
 }
 
 // MustGet 获取一个配置
-func (c *configService) MustGet(key string) (value string) {
+func (c *Service) MustGet(key string) (value string) {
 	value, err := c.Get(key)
 	if err != nil {
 		panic(err)
@@ -74,8 +76,53 @@ func (c *configService) MustGet(key string) (value string) {
 	return value
 }
 
+// SetStandard 设置定义
+func (c *Service) SetStandard(key string, deft string, required bool, description string) {
+	c.RLock()
+	defer c.RUnlock()
+
+	// 恢复为未 check 状态
+	c.checked = false
+
+	// 检查 key 格式
+	c.mustKeyCheck(key)
+
+	// 记录
+	stan := new(standard)
+	stan.Key = key
+	stan.Default = deft
+	stan.Required = required
+	stan.Description = description
+	c.standards[stan.Key] = *stan
+
+	// 注册 flag
+	var value string
+	value = stan.Default
+	c.data[stan.Key] = &value
+	flag.StringVar(&value, key, stan.Default, description)
+}
+
+// AddFile 加载文件
+func (c *Service) AddFile(path string) {
+	c.RLock()
+	defer c.RUnlock()
+	c.files = append(c.files, path)
+}
+
+// CreateJSONTemplate 写入 json 模版
+func (c *Service) CreateJSONTemplate(path string) error {
+	var err error
+	if !c.checked {
+		if err = c.check(); err != nil {
+			return err
+		}
+	}
+
+	return file.WriteJSON(path, false, c.data)
+}
+
 // check 检查加载到的数据
-func (c *configService) load() (err error) {
+func (c *Service) load() (err error) {
 	c.loadEnv()  // 先加载环境变量
 	c.loadFlag() // 再加载命令行参数
 
@@ -93,7 +140,7 @@ func (c *configService) load() (err error) {
 }
 
 // check 检查加载到的数据
-func (c *configService) check() (err error) {
+func (c *Service) check() (err error) {
 	for _, standard := range c.standards {
 		if standard.Required && c.data[standard.Key] == nil {
 			panic(fmt.Sprintf("config: %s is required, %s", standard.Key, standard.Description))
@@ -105,7 +152,7 @@ func (c *configService) check() (err error) {
 }
 
 // loadFlag 加载启动命令参数
-func (c *configService) loadFlag() {
+func (c *Service) loadFlag() {
 	c.RLock()
 	defer c.RUnlock()
 	c.checked = false
@@ -132,7 +179,7 @@ func (c *configService) loadFlag() {
 }
 
 // loadFile 加载文件
-func (c *configService) loadFile(path string) error {
+func (c *Service) loadFile(path string) error {
 	c.RLock()
 	var err error
 	defer c.RUnlock()
@@ -154,7 +201,7 @@ func (c *configService) loadFile(path string) error {
 }
 
 // 加载环境变量
-func (c *configService) loadEnv() {
+func (c *Service) loadEnv() {
 	c.RLock()
 	defer c.RUnlock()
 	c.checked = false
@@ -166,44 +213,19 @@ func (c *configService) loadEnv() {
 	}
 }
 
-// SetStandard 设置定义
-func (c *configService) SetStandard(key string, deft string, required bool, description string) {
-	c.RLock()
-	defer c.RUnlock()
-
-	// 恢复为未 check 状态
-	c.checked = false
-
-	// 记录
-	stan := new(standard)
-	stan.Key = key
-	stan.Default = deft
-	stan.Required = required
-	stan.Description = description
-	c.standards[stan.Key] = *stan
-
-	// 注册 flag
-	var value string
-	value = stan.Default
-	c.data[stan.Key] = &value
-	flag.StringVar(&value, key, stan.Default, description)
-}
-
-// AddFile 加载文件
-func (c *configService) AddFile(path string) {
-	c.RLock()
-	defer c.RUnlock()
-	c.files = append(c.files, path)
-}
-
-// CreateJSONTemplate 写入 json 模版
-func (c *configService) CreateJSONTemplate(path string) error {
-	var err error
-	if !c.checked {
-		if err = c.check(); err != nil {
-			return err
-		}
+// MustKeyCheck 检查
+func (c *Service) mustKeyCheck(key string) {
+	if key == "" {
+		panic(fmt.Errorf("config: 配置 key 名不允许为空"))
 	}
 
-	return file.WriteJSON(path, false, c.data)
+	matched, err := regexp.MatchString("^[a-zA-Z0-9_]*$", key)
+
+	if err != nil {
+		panic(fmt.Errorf("config: 配置 key 名检查错误: %v", err))
+	}
+
+	if !matched {
+		panic(fmt.Errorf("config: 配置 key 名仅允许大小写字母、数字、下划线"))
+	}
 }
