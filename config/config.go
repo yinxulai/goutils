@@ -57,7 +57,7 @@ func (c *configService) Get(key string) (value string, err error) {
 		}
 	}
 
-	if *c.data[key] == "" {
+	if c.data[key] == nil {
 		return "", fmt.Errorf("config: %s is nil", key)
 	}
 
